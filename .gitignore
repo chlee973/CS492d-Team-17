@@ -1,2 +1,10 @@
+# Dataset and models
 data/
 sketch_data/
+logs/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
