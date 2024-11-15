@@ -1,182 +1,173 @@
-from abc import abstractmethod
 import math
-import numpy as np
-import torch as th
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from .nn import (
-    SiLU,
-    conv_nd,
-    linear,
-    avg_pool_nd,
-    zero_module,
-    normalization,
-    checkpoint,
-)
+from torch.nn import init
 
 
-class TimestepBlock(nn.Module):
-    @abstractmethod
-    def forward(self, x, emb):
-        """
-        Apply the module to `x` given `emb` timestep embeddings.
-        """
+class Swish(nn.Module):
+    def forward(self, x):
+        return x * torch.sigmoid(x)
 
 
-class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
-    def forward(self, x, emb):
-        for layer in self:
-            if isinstance(layer, TimestepBlock):
-                x = layer(x, emb)
-            else:
-                x = layer(x)
+class DownSample(nn.Module):
+    def __init__(self, in_ch):
+        super().__init__()
+        self.main = nn.Conv1d(in_ch, in_ch, 3, stride=2, padding=1)
+        self.initialize()
+
+    def initialize(self):
+        init.xavier_uniform_(self.main.weight)
+        init.zeros_(self.main.bias)
+
+    def forward(self, x, temb):
+        x = self.main(x)
         return x
 
 
-class Upsample(nn.Module):
-    def __init__(self, channels, use_conv, dims=2):
+class UpSample(nn.Module):
+    def __init__(self, in_ch):
         super().__init__()
-        self.channels = channels
-        self.use_conv = use_conv
-        self.dims = dims
-        if use_conv:
-            self.conv = conv_nd(dims, channels, channels, 3, padding=1)
+        self.main = nn.Conv1d(in_ch, in_ch, 3, stride=1, padding=1)
+        self.initialize()
 
-    def forward(self, x):
-        assert x.shape[1] == self.channels
-        if self.dims == 3:
-            x = F.interpolate(
-                x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest"
-            )
-        else:
-            x = F.interpolate(x, scale_factor=2, mode="nearest")
-        if self.use_conv:
-            x = self.conv(x)
+    def initialize(self):
+        init.xavier_uniform_(self.main.weight)
+        init.zeros_(self.main.bias)
+
+    def forward(self, x, temb):
+        # _, _, H, W = x.shape
+        _, _, D = x.shape
+        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = self.main(x)
         return x
 
 
-class Downsample(nn.Module):
-    def __init__(self, channels, use_conv, dims=2):
+class AttnBlock(nn.Module):
+    def __init__(self, in_ch):
         super().__init__()
-        self.channels = channels
-        self.use_conv = use_conv
-        self.dims = dims
-        stride = 2 if dims != 3 else (1, 2, 2)
-        if use_conv:
-            self.op = conv_nd(dims, channels, channels, 3, stride=stride, padding=1)
-        else:
-            self.op = avg_pool_nd(stride)
+        self.group_norm = nn.GroupNorm(32, in_ch)
+        self.proj_q = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
+        self.proj_k = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
+        self.proj_v = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
+        self.proj = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
+        self.initialize()
+
+    def initialize(self):
+        for module in [self.proj_q, self.proj_k, self.proj_v, self.proj]:
+            init.xavier_uniform_(module.weight)
+            init.zeros_(module.bias)
+        init.xavier_uniform_(self.proj.weight, gain=1e-5)
 
     def forward(self, x):
-        assert x.shape[1] == self.channels
-        return self.op(x)
+        B, C, D = x.shape # batch, channel, dimension
+        h = self.group_norm(x)
+        q = self.proj_q(h)
+        k = self.proj_k(h)
+        v = self.proj_v(h)
+
+        # q = q.permute(0, 2, 3, 1).view(B, H * W, C)
+        q = q.permute(0, 2, 1) # (B, D, C)
+        k = k
+        w = torch.bmm(q, k) * (int(C) ** (-0.5))
+        assert list(w.shape) == [B, D, D]
+        w = F.softmax(w, dim=-1)
+
+        # v = v.permute(0, 2, 3, 1).view(B, H * W, C)
+        v = v.permute(0, 2, 1)
+        h = torch.bmm(w, v)
+        assert list(h.shape) == [B, D, C]
+        # h = h.view(B, H, W, C).permute(0, 3, 1, 2)
+        h = h.permute(0, 2, 1)
+        h = self.proj(h)
+
+        return x + h
 
 
-class ResBlock(TimestepBlock):
-    def __init__(
-        self,
-        in_channels,
-        emb_channels,
-        dropout,
-        out_channels=None,
-        use_conv=False,
-        dims=2,
-        use_checkpoint=False,
-    ):
+class ResBlock(nn.Module):
+    def __init__(self, in_ch, out_ch, tdim, dropout, attn=False):
         super().__init__()
-        self.in_channels = in_channels
-        self.emb_channels = emb_channels
-        self.dropout = dropout
-        self.out_channels = out_channels or in_channels
-        self.use_conv = use_conv
-        self.use_checkpoint = use_checkpoint
-
-        self.in_layers = nn.Sequential(
-            normalization(in_channels),
-            SiLU(),
-            conv_nd(dims, in_channels, self.out_channels, 3, padding=1),
+        self.block1 = nn.Sequential(
+            nn.GroupNorm(32, in_ch),
+            Swish(),
+            nn.Conv1d(in_ch, out_ch, 3, stride=1, padding=1),
         )
-        self.emb_layers = nn.Sequential(
-            SiLU(),
-            linear(
-                emb_channels,
-                self.out_channels,
-            ),
+        self.temb_proj = nn.Sequential(
+            Swish(),
+            nn.Linear(tdim, out_ch),
         )
-        self.out_layers = nn.Sequential(
-            normalization(self.out_channels),
-            SiLU(),
-            nn.Dropout(p=dropout),
-            zero_module(
-                conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1)
-            ),
+        self.block2 = nn.Sequential(
+            nn.GroupNorm(32, out_ch),
+            Swish(),
+            nn.Dropout(dropout),
+            nn.Conv1d(out_ch, out_ch, 3, stride=1, padding=1),
         )
-
-        if self.out_channels == in_channels:
-            self.skip_connection = nn.Identity()
-        elif use_conv:
-            self.skip_connection = conv_nd(
-                dims, in_channels, self.out_channels, 3, padding=1
-            )
+        if in_ch != out_ch:
+            self.shortcut = nn.Conv1d(in_ch, out_ch, 1, stride=1, padding=0)
         else:
-            self.skip_connection = conv_nd(dims, in_channels, self.out_channels, 1)
+            self.shortcut = nn.Identity()
+        if attn:
+            self.attn = AttnBlock(out_ch)
+        else:
+            self.attn = nn.Identity()
+        self.initialize()
 
-    def forward(self, x, emb):
-        return checkpoint(
-            self._forward, (x, emb), self.parameters(), self.use_checkpoint
-        )
+    def initialize(self):
+        for module in self.modules():
+            if isinstance(module, (nn.Conv1d, nn.Linear)):
+                init.xavier_uniform_(module.weight)
+                init.zeros_(module.bias)
+        init.xavier_uniform_(self.block2[-1].weight, gain=1e-5)
 
-    def _forward(self, x, emb):
-        h = self.in_layers(x)
-        emb_out = self.emb_layers(emb).type(h.dtype)
-        while len(emb_out.shape) < len(h.shape):
-            emb_out = emb_out[..., None]
-        h = h + emb_out
-        h = self.out_layers(h)
-        return self.skip_connection(x) + h
+    def forward(self, x, temb):
+        h = self.block1(x)
+        h += self.temb_proj(temb)[:, :, None]
+        h = self.block2(h)
+
+        h = h + self.shortcut(x)
+        h = self.attn(h)
+        return h
 
 
-class AttentionBlock(nn.Module):
-    def __init__(self, channels, num_heads=1, use_checkpoint=False):
+class TimeEmbedding(nn.Module):
+    def __init__(self, hidden_size, frequency_embedding_size=256):
         super().__init__()
-        self.channels = channels
-        self.num_heads = num_heads
-        self.use_checkpoint = use_checkpoint
-
-        self.norm = normalization(channels)
-        self.qkv = conv_nd(1, channels, channels * 3, 1)
-        self.attention = QKVAttention()
-        self.proj_out = zero_module(conv_nd(1, channels, channels, 1))
-
-    def forward(self, x):
-        return checkpoint(self._forward, (x,), self.parameters(), self.use_checkpoint)
-
-    def _forward(self, x):
-        b, c, *spatial = x.shape
-        x = x.reshape(b, c, -1)
-        qkv = self.qkv(self.norm(x))
-        qkv = qkv.reshape(b * self.num_heads, -1, qkv.shape[2])
-        h = self.attention(qkv)
-        h = h.reshape(b, -1, h.shape[-1])
-        h = self.proj_out(h)
-        return (x + h).reshape(b, c, *spatial)
-
-
-class QKVAttention(nn.Module):
-    def forward(self, qkv):
-        ch = qkv.shape[1] // 3
-        q, k, v = th.split(qkv, ch, dim=1)
-        scale = 1 / math.sqrt(math.sqrt(ch))
-        weight = th.einsum(
-            "bct,bcs->bts", q * scale, k * scale
+        self.mlp = nn.Sequential(
+            nn.Linear(frequency_embedding_size, hidden_size, bias=True),
+            nn.SiLU(),
+            nn.Linear(hidden_size, hidden_size, bias=True),
         )
-        weight = th.softmax(weight.float(), dim=-1).type(weight.dtype)
-        return th.einsum("bts,bcs->bct", weight, v)
+        self.frequency_embedding_size = frequency_embedding_size
 
     @staticmethod
-    def count_flops(model, _x, y):
-        b, c, *spatial = y[0].shape
-        num_spatial = int(np.prod(spatial))
-        matmul_ops = 2 * b * (num_spatial ** 2) * c
-        model.total_ops += th.DoubleTensor([matmul_ops])
+    def timestep_embedding(t, dim, max_period=10000):
+        """
+        Create sinusoidal timestep embeddings.
+        :param t: a 1-D Tensor of N indices, one per batch element.
+                          These may be fractional.
+        :param dim: the dimension of the output.
+        :param max_period: controls the minimum frequency of the embeddings.
+        :return: an (N, D) Tensor of positional embeddings.
+        """
+        # https://github.com/openai/glide-text2im/blob/main/glide_text2im/nn.py
+        half = dim // 2
+        freqs = torch.exp(
+            -math.log(max_period)
+            * torch.arange(start=0, end=half, dtype=torch.float32)
+            / half
+        ).to(device=t.device)
+        args = t[:, None].float() * freqs[None]
+        embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+        if dim % 2:
+            embedding = torch.cat(
+                [embedding, torch.zeros_like(embedding[:, :1])], dim=-1
+            )
+        return embedding
+
+    def forward(self, t):
+        if t.ndim == 0:
+            t = t.unsqueeze(-1)
+        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
+        t_emb = self.mlp(t_freq)
+        return t_emb
