@@ -64,12 +64,7 @@ class UNet(nn.Module):
         )
 
         self.pen_state_tail = nn.Sequential(
-            nn.GroupNorm(32, now_ch),
-            Swish(),
-            nn.Linear(128, 64),
-            Swish(),
-            nn.Linear(64, 1),
-            nn.Sigmoid()
+            nn.Linear(128, 2)
         )
         self.initialize()
 
@@ -78,10 +73,8 @@ class UNet(nn.Module):
         init.zeros_(self.head.bias)
         init.xavier_uniform_(self.tail[-1].weight, gain=1e-5)
         init.zeros_(self.tail[-1].bias)
-        init.xavier_uniform_(self.pen_state_tail[2].weight, gain=1e-5)
-        init.zeros_(self.pen_state_tail[2].bias)
-        init.xavier_uniform_(self.pen_state_tail[4].weight, gain=1e-5)
-        init.zeros_(self.pen_state_tail[4].bias)
+        init.xavier_uniform_(self.pen_state_tail[0].weight, gain=1e-5)
+        init.zeros_(self.pen_state_tail[0].bias)
 
     def forward(self, x, timestep, class_label=None):
         # Timestep embedding

@@ -3,19 +3,22 @@ import ndjson
 import numpy as np
 import h5py
 import json
+from tqdm import tqdm
 
-
-## 실제로 그리는 stroke일 때 pen_state가 1, 아닐 때 0
-## 시작점의 위치 정보는 사라진다.
+## sketch-rnn에서 사용한 데이터 형식으로 전처리
+## stroke 끝점에서 penstate가 1이고 나머지 지점에서 0이다.
+## 따라서 1->0으로 penstate가 변하는 지점에서 선이 끊긴다.
 def preprocess_sketch(sketch: list):
     sketch_pos = np.concatenate([np.array(stroke).astype(np.float32) for stroke in sketch], axis=1)
+    zero_pos = np.zeros((2,1), dtype=np.float32)
+    sketch_pos = np.concatenate([zero_pos, sketch_pos], axis=1)
     sketch_vectors = sketch_pos[:, 1:] - sketch_pos[:, :-1]
-    pen_state = np.full((sketch_vectors.shape[1]), 1).astype(np.float32)
+    pen_state = np.zeros((sketch_vectors.shape[1],), dtype=np.float32)
     length_sum = 0
     stroke_lengths = [len(stroke[0]) for stroke in sketch]
-    for stroke_length in stroke_lengths[:-1]:
+    for stroke_length in stroke_lengths:
         length_sum += stroke_length
-        pen_state[length_sum-1] = 0
+        pen_state[length_sum-1] = 1
     result = np.transpose(np.concatenate((sketch_vectors, pen_state[np.newaxis, :]), axis=0))
     return result
 
@@ -40,7 +43,7 @@ def main():
                 data = ndjson.load(f)
             
             preprocessed_sketches = []
-            for sketch in data:
+            for sketch in tqdm(data):
                 sketch = sketch['drawing']
                 result = preprocess_sketch(sketch)
                 preprocessed_sketches.append(result)

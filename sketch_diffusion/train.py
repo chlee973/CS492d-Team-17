@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import torch
-from dataset import SketchDataModule, get_data_iterator, tensor_to_pil_image
+from dataset import SketchDataModule, get_data_iterator, pen_state_to_binary, tensor_to_pil_image
 from dotmap import DotMap
 from model import DiffusionModule
 from network import UNet
@@ -101,6 +101,7 @@ def main(args):
                     vectors, pen_states = ddpm.sample(4, return_traj=False)
 
                 samples = torch.cat((vectors, pen_states), dim=-1)
+                samples = pen_state_to_binary(samples)
                 pil_images = [tensor_to_pil_image(sample) for sample in samples]
                 for i, img in enumerate(pil_images):
                     img.save(save_dir / f"step={step}-{i}.png")
@@ -139,7 +140,7 @@ if __name__ == "__main__":
         help="the number of model training steps.",
     )
     parser.add_argument("--warmup_steps", type=int, default=200)
-    parser.add_argument("--log_interval", type=int, default=500)
+    parser.add_argument("--log_interval", type=int, default=2000)
     parser.add_argument(
         "--num_diffusion_train_timesteps",
         type=int,

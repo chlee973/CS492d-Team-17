@@ -2,7 +2,7 @@ import argparse
 
 import numpy as np
 import torch
-from dataset import tensor_to_pil_image
+from dataset import pen_state_to_binary, tensor_to_pil_image
 from model import DiffusionModule
 from scheduler import DDPMScheduler
 from pathlib import Path
@@ -50,6 +50,7 @@ def main(args):
             )
 
         samples = torch.cat((vectors, pen_states), dim=-1)
+        samples = pen_state_to_binary(samples)
         pil_images = [tensor_to_pil_image(sample) for sample in samples]
 
         for j, img in zip(range(sidx, eidx), pil_images):

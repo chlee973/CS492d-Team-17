@@ -31,6 +31,8 @@ class DiffusionModule(nn.Module):
 
         noise_criterion = nn.MSELoss()
         pen_state_criterion = nn.CrossEntropyLoss()
+        pen_state_pred = pen_state_pred.reshape(-1, 2).type(torch.FloatTensor)
+        pen_state = pen_state.reshape(-1,).type(torch.LongTensor)
 
         loss = noise_criterion(noise_pred, noise) + 0.01 * pen_state_criterion(pen_state_pred, pen_state)
         ######################
@@ -82,8 +84,6 @@ class DiffusionModule(nn.Module):
                     timestep=t.to(self.device),
                     class_label=class_label,
                 )
-                # print(f"샘플링 timestep {t}에서 noise_pred", torch.isnan(noise_pred).any())
-                # print(f"샘플링 timestep {t}에서 pen_state_pred", torch.isnan(pen_state_pred).any())
 
             x_t_prev = self.var_scheduler.step(x_t, t, noise_pred)
             

@@ -1,23 +1,26 @@
 import os
-from multiprocessing.pool import Pool
-from pathlib import Path
 from typing import List
 
 import numpy as np
 import torch
-import torchvision.transforms as transforms
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image, ImageDraw
 import h5py
 
-import torch
+from sketch_util import scale_sketch, sketch_size
 
 def pen_state_to_binary(x):
-    # x: [B, C, 3]
-    result = x.clone()
-    pen_state_probs = result[:, :, 2]
-    binary_values = (pen_state_probs > 0.5).float()
-    result[:, :, 2] = binary_values
+    # x: [B, C, 4] 
+    # 마지막 차원은 (dx, dy, pen_state0, pen_state1)
+    # 마지막 차원에 softmax를 취해야함
+    assert x.shape[-1] == 4
+    x_clone = x.clone()
+    pen_states = x_clone[:, :, 2:]
+    pen_states = F.softmax(pen_states, dim=-1)
+    pen_states = torch.argmax(pen_states, dim=-1)
+    result = torch.cat((x_clone[:, :, :2], pen_states[:, :, None]), dim=-1)
+    assert result.shape[-1] == 3
     return result
 
 def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30):
@@ -36,41 +39,20 @@ def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30
     draw = ImageDraw.Draw(image)
 
     current_x, current_y = start_x + padding//2, start_y + padding//2
-
+    
+    prev_pen_state = 1
     for dx, dy, pen_state in sketch:
         next_x = current_x + dx
         next_y = current_y + dy
 
-        if pen_state == 1:
-            draw.line([current_x, current_y, next_x, next_y], fill="black", width=1)
+        if pen_state == 0 and prev_pen_state == 1:
+            draw.line([current_x, current_y, next_x, next_y], fill="yellow", width=1)
         else:
-            draw.line([current_x, current_y, next_x, next_y], fill="gray", width=1)
+            draw.line([current_x, current_y, next_x, next_y], fill="black", width=1)
         current_x, current_y = next_x, next_y
-
+        prev_pen_state = pen_state
+    
     return image
-
-def sketch_size(sketch):
-    vertical_sum = np.cumsum(sketch[1:], axis=0)  
-
-    xmin, ymin, _ = np.min(vertical_sum, axis=0)
-    xmax, ymax, _ = np.max(vertical_sum, axis=0)
-
-    w = xmax - xmin
-    h = ymax - ymin
-    start_x = -xmin - sketch[0][0]  
-    start_y = -ymin - sketch[0][1]
-    return [int(start_x), int(start_y), h, w]
-
-def scale_sketch(sketch, size=(256, 256)):
-    [_, _, h, w] = sketch_size(sketch)
-    assert h !=0 and w != 0
-    if h >= w:
-        sketch_normalize = sketch / np.array([[h, h, 1]], dtype=float)
-    else:
-        sketch_normalize = sketch / np.array([[w, w, 1]], dtype=float)
-    sketch_rescale = sketch_normalize * np.array([[size[0], size[1], 1]], dtype=float)
-    return sketch_rescale.astype("int16")
-
 
 def get_data_iterator(iterable):
     """Allows training with DataLoaders in a single infinite loop:
