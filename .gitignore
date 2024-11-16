@@ -1,7 +1,11 @@
+
 # Dataset and models
-data/
 sketch_data/
+
+data/
+results/
 logs/
+
 
 # Python cache files
 __pycache__/
