@@ -23,11 +23,12 @@ class DiffusionModule(nn.Module):
         assert x0.dtype == torch.float32
         B = x0.shape[0]
         timestep = self.var_scheduler.uniform_sample_t(B, self.device)
-        pen_state = x0[:, :, 2:]
-        
-        noise_pred, pen_state_pred = self.network(x0[:, :, :2], timestep, class_label)
+        pen_state = x0[:, :, 2]
         if noise is None:
-            noise = torch.randn_like(noise_pred, device=self.device)
+            noise = torch.randn_like(x0[:, :, :2], device=self.device)
+        xt, noise = self.var_scheduler.add_noise(x0[:, :, :2], timestep, noise)
+
+        noise_pred, pen_state_pred = self.network(xt, timestep, class_label)
 
         noise_criterion = nn.MSELoss()
         pen_state_criterion = nn.CrossEntropyLoss()
