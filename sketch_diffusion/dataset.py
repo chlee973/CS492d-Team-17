@@ -20,7 +20,7 @@ def pen_state_to_binary(x):
     result[:, :, 2] = binary_values
     return result
 
-def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256)):
+def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30):
     # tensor: [C, 3]
     assert tensor.ndim == 2 and tensor.shape[1] == 3
     if tensor.is_cuda:
@@ -28,17 +28,18 @@ def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256)):
     tensor = tensor.numpy()
 
     width, height = canvas_size
+
+    sketch = scale_sketch(tensor, (width-padding, height-padding))  
+    [start_x, start_y, _, _] = sketch_size(sketch=sketch)
+
     image = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(image)
 
-    current_x, current_y = canvas_size[0] // 2, canvas_size[1] // 2 # center
+    current_x, current_y = start_x + padding//2, start_y + padding//2
 
-    for dx, dy, pen_state in tensor:
-        next_x = current_x + int(dx * 255)
-        next_y = current_y + int(dy * 255)
-
-        next_x = max(0, min(next_x, width - 1))
-        next_y = max(0, min(next_y, height - 1))
+    for dx, dy, pen_state in sketch:
+        next_x = current_x + dx
+        next_y = current_y + dy
 
         if pen_state == 1:
             draw.line([current_x, current_y, next_x, next_y], fill="black", width=1)
@@ -47,6 +48,29 @@ def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256)):
         current_x, current_y = next_x, next_y
 
     return image
+
+def sketch_size(sketch):
+    vertical_sum = np.cumsum(sketch[1:], axis=0)  
+
+    xmin, ymin, _ = np.min(vertical_sum, axis=0)
+    xmax, ymax, _ = np.max(vertical_sum, axis=0)
+
+    w = xmax - xmin
+    h = ymax - ymin
+    start_x = -xmin - sketch[0][0]  
+    start_y = -ymin - sketch[0][1]
+    return [int(start_x), int(start_y), h, w]
+
+def scale_sketch(sketch, size=(256, 256)):
+    [_, _, h, w] = sketch_size(sketch)
+    assert h !=0 and w != 0
+    if h >= w:
+        sketch_normalize = sketch / np.array([[h, h, 1]], dtype=float)
+    else:
+        sketch_normalize = sketch / np.array([[w, w, 1]], dtype=float)
+    sketch_rescale = sketch_normalize * np.array([[size[0], size[1], 1]], dtype=float)
+    return sketch_rescale.astype("int16")
+
 
 def get_data_iterator(iterable):
     """Allows training with DataLoaders in a single infinite loop:

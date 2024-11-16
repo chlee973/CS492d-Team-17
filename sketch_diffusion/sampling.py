@@ -59,10 +59,10 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--ckpt_path", type=str)
-    parser.add_argument("--save_dir", type=str)
+    parser.add_argument("--ckpt_path", type=str, default='results/diffusion-ddpm-11-15-151946/last.ckpt')
+    parser.add_argument("--save_dir", type=str, default='samples/')
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--sample_method", type=str, default="ddpm")
     parser.add_argument("--cfg_scale", type=float, default=7.5)

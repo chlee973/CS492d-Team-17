@@ -53,7 +53,6 @@ class DiffusionModule(nn.Module):
         guidance_scale: Optional[float] = 0.0,
     ):
         x_T = torch.randn([batch_size, self.Nmax, 2], device=self.device, dtype=torch.float32)
-        print("xT의 크기는 :", x_T.shape)
         do_classifier_free_guidance = guidance_scale > 0.0
 
         if do_classifier_free_guidance:

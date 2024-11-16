@@ -82,7 +82,7 @@ def main(args):
         optimizer, lr_lambda=lambda t: min((t + 1) / config.warmup_steps, 1.0)
     )
 
-    step = 1
+    step = 0
     losses = []
     with tqdm(initial=step, total=config.train_num_steps) as pbar:
         while step < config.train_num_steps:
@@ -105,11 +105,12 @@ def main(args):
                 for i, img in enumerate(pil_images):
                     img.save(save_dir / f"step={step}-{i}.png")
 
-                ddpm.save(f"{save_dir}/last.ckpt")
+                ddpm.save(f"{save_dir}/step={step}.ckpt")
                 ddpm.train()
 
             img, label = next(train_it)
             img, label = img.to(config.device).to(torch.float32), label.to(torch.float32)
+
             if args.use_cfg:  # Conditional, CFG training
                 loss = ddpm.get_loss(img, class_label=label)
             else:  # Unconditional training
@@ -130,15 +131,15 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument(
         "--train_num_steps",
         type=int,
-        default=50000,
+        default=100000,
         help="the number of model training steps.",
     )
     parser.add_argument("--warmup_steps", type=int, default=200)
-    parser.add_argument("--log_interval", type=int, default=200)
+    parser.add_argument("--log_interval", type=int, default=500)
     parser.add_argument(
         "--num_diffusion_train_timesteps",
         type=int,
