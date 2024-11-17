@@ -9,7 +9,7 @@ from torch.nn import init
 
 
 class UNet(nn.Module):
-    def __init__(self, T=1000, ch=96, ch_mult=[1,2,3,4], attn=[1], num_res_blocks=3, dropout=0.1, use_cfg=False, cfg_dropout=0.1, num_classes=None):
+    def __init__(self, T=1000, ch=96, ch_mult=[1,2,3,4], attn=[], num_res_blocks=3, dropout=0.1, use_cfg=False, cfg_dropout=0.1, num_classes=None):
         super().__init__()
         assert all([i < len(ch_mult) for i in attn]), 'attn index out of bound'
         self.Nmax = ch

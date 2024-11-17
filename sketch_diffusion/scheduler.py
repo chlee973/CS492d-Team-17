@@ -86,12 +86,17 @@ class DDPMScheduler(BaseScheduler):
         ######## TODO ########
         # DO NOT change the code outside this part.
         # Assignment 1. Implement the DDPM reverse step.
-        noise_pred_factor = (1-self.alphas[t])/torch.sqrt(1-self.alphas_cumprod[t])
-        mean = (x_t - noise_pred_factor * noise_pred) / torch.sqrt(self.alphas[t])
-        sample_prev = mean
-        if t > 0:
-            z_t = torch.randn_like(x_t, device=x_t.device)
-            sample_prev += self.sigmas[t] * z_t
+        if t <= 0:
+            z = torch.zeros_like(x_t, device=x_t.device)
+        else:
+            z = torch.randn_like(x_t, device=x_t.device)
+        t = torch.ones(x_t.shape[0], device=x_t.device).long() * t
+        alphas_cumprod_t = self._get_teeth(self.alphas_cumprod, t)
+        alphas_t = self._get_teeth(self.alphas, t)
+        sigmas_t = self._get_teeth(self.sigmas, t)
+        eps_factor = (1-alphas_t)/(1-alphas_cumprod_t).sqrt()
+        mean = (x_t - eps_factor * noise_pred)/ alphas_t.sqrt()
+        sample_prev = mean + sigmas_t * z
         #######################
         
         return sample_prev
@@ -99,7 +104,7 @@ class DDPMScheduler(BaseScheduler):
     # https://nn.labml.ai/diffusion/ddpm/utils.html
     def _get_teeth(self, consts: torch.Tensor, t: torch.Tensor): # get t th const 
         const = consts.gather(-1, t)
-        return const.reshape(-1, 1, 1, 1)
+        return const.reshape(-1, 1, 1)
     
     def add_noise(
         self,
@@ -125,8 +130,8 @@ class DDPMScheduler(BaseScheduler):
         ######## TODO ########
         # DO NOT change the code outside this part.
         # Assignment 1. Implement the DDPM forward step.
-        alpha = self.alphas_cumprod[t]
-        x_t = torch.sqrt(alpha) * x_0 + torch.sqrt(1-alpha) * eps
+        alphas_cumprod_t = self._get_teeth(self.alphas_cumprod, t)
+        x_t = alphas_cumprod_t.sqrt() * x_0 + (1-alphas_cumprod_t).sqrt() * eps
         #######################
 
         return x_t, eps
