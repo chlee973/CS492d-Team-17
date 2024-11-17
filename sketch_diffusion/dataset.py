@@ -16,10 +16,11 @@ def pen_state_to_binary(x):
     # 마지막 차원에 softmax를 취해야함
     assert x.shape[-1] == 4
     x_clone = x.clone()
-    pen_states = x_clone[:, :, 2:]
-    pen_states = F.softmax(pen_states, dim=-1)
-    pen_states = torch.argmax(pen_states, dim=-1)
-    result = torch.cat((x_clone[:, :, :2], pen_states[:, :, None]), dim=-1)
+    pen_states0 = x_clone[:, :, 2]
+    ones = pen_states0 < 2
+    binary_pen_states = torch.zeros_like(pen_states0, dtype=pen_states0.dtype, device=pen_states0.device)
+    binary_pen_states[ones] = 1
+    result = torch.cat((x_clone[:, :, :2], binary_pen_states[:, :, None]), dim=-1)
     assert result.shape[-1] == 3
     return result
 
@@ -40,17 +41,19 @@ def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30
 
     current_x, current_y = start_x + padding//2, start_y + padding//2
     
-    prev_pen_state = 1
+    skip_line = False
     for dx, dy, pen_state in sketch:
         next_x = current_x + dx
         next_y = current_y + dy
 
-        if pen_state == 0 and prev_pen_state == 1:
+        if skip_line:
             draw.line([current_x, current_y, next_x, next_y], fill="yellow", width=1)
+            skip_line = False
         else:
             draw.line([current_x, current_y, next_x, next_y], fill="black", width=1)
+            if pen_state == 1:
+                skip_line = True
         current_x, current_y = next_x, next_y
-        prev_pen_state = pen_state
     
     return image
 
