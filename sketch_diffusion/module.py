@@ -45,17 +45,19 @@ class UpSample(nn.Module):
 
 
 class AttnBlock(nn.Module):
-    def __init__(self, in_ch):
+    def __init__(self, in_ch, num_heads=4):
         super().__init__()
+        assert in_ch % num_heads == 0, "in_ch must be divisible by num_heads"
+        self.num_heads = num_heads
+        self.head_dim = in_ch // num_heads
+
         self.group_norm = nn.GroupNorm(32, in_ch)
-        self.proj_q = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
-        self.proj_k = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
-        self.proj_v = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
+        self.proj_qkv = nn.Conv1d(in_ch, in_ch * 3, 1, stride=1, padding=0)
         self.proj = nn.Conv1d(in_ch, in_ch, 1, stride=1, padding=0)
         self.initialize()
 
     def initialize(self):
-        for module in [self.proj_q, self.proj_k, self.proj_v, self.proj]:
+        for module in [self.proj_qkv, self.proj]:
             init.xavier_uniform_(module.weight)
             init.zeros_(module.bias)
         init.xavier_uniform_(self.proj.weight, gain=1e-5)
@@ -63,25 +65,19 @@ class AttnBlock(nn.Module):
     def forward(self, x):
         B, C, D = x.shape # batch, channel, dimension
         h = self.group_norm(x)
-        q = self.proj_q(h)
-        k = self.proj_k(h)
-        v = self.proj_v(h)
 
-        # q = q.permute(0, 2, 3, 1).view(B, H * W, C)
-        q = q.permute(0, 2, 1) # (B, D, C)
-        k = k
-        w = torch.bmm(q, k) * (int(C) ** (-0.5))
-        assert list(w.shape) == [B, D, D]
-        w = F.softmax(w, dim=-1)
+        qkv = self.proj_qkv(h) # (B, 3C, D) = (B, 3*96, D)
+        qkv = qkv.reshape(B * self.num_heads, -1, D) # (B*num_head, 3*head_dim, D)
 
-        # v = v.permute(0, 2, 3, 1).view(B, H * W, C)
-        v = v.permute(0, 2, 1)
-        h = torch.bmm(w, v)
-        assert list(h.shape) == [B, D, C]
-        # h = h.view(B, H, W, C).permute(0, 3, 1, 2)
-        h = h.permute(0, 2, 1)
+        q, k, v = torch.split(qkv, self.head_dim, dim=1) # (B*num_head, head_dim, D)
+        scale = 1 / math.sqrt(math.sqrt(self.head_dim))
+        weight = torch.einsum(
+            "bct,bcs->bts", q * scale, k * scale
+        ) # (B*num_head, D, D)
+        weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
+        h = torch.einsum("bts,bcs->bct", weight, v)
+        h = h.reshape(B, C, D)
         h = self.proj(h)
-
         return x + h
 
 
@@ -108,7 +104,7 @@ class ResBlock(nn.Module):
         else:
             self.shortcut = nn.Identity()
         if attn:
-            self.attn = AttnBlock(out_ch)
+            self.attn = AttnBlock(out_ch, num_heads=4)
         else:
             self.attn = nn.Identity()
         self.initialize()
