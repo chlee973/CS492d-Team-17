@@ -125,7 +125,7 @@ class DDPMScheduler(BaseScheduler):
         """
         
         if eps is None:
-            eps       = torch.randn(x_0.shape, device='cuda')
+            eps = torch.randn(x_0.shape, device='cuda')
 
         ######## TODO ########
         # DO NOT change the code outside this part.

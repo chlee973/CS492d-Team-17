@@ -5,10 +5,11 @@ sketch_data/
 data/
 results/
 logs/
-
+samples/
 
 # Python cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+

@@ -43,7 +43,7 @@ def main(args):
     """######"""
 
     ds_module = SketchDataModule(
-        data_path="data/sketches.h5",
+        data_path="../data/sketches.h5",
         categories=['cat'],
         Nmax=config.Nmax,
         label_offset=1,
@@ -61,6 +61,8 @@ def main(args):
         beta_T=config.beta_T,
         mode="linear",
     )
+    # check
+    print(var_scheduler.register_buffer)
     
     network = UNet(
         T=config.num_diffusion_train_timesteps,
