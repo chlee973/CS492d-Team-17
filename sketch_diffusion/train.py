@@ -61,7 +61,7 @@ def main(args):
         beta_T=config.beta_T,
         mode="linear",
     )
-
+    
     network = UNet(
         T=config.num_diffusion_train_timesteps,
         ch=config.Nmax,
@@ -76,16 +76,34 @@ def main(args):
 
     ddpm = DiffusionModule(network, var_scheduler)
     ddpm = ddpm.to(config.device)
+    #################### Implement EMA
+    # EMA decay rate 설정 (일반적으로 0.999나 0.9999를 사용)
+    ema_rate = 0.9999
+    ema_params = [param.clone().detach().to(config.device) for param in ddpm.network.parameters()]
+    for param in ema_params:
+        param.requires_grad = False
+    #################### Implement Scheduler
+    initial_lr = 2e-4
+    lr_anneal_steps = config.train_num_steps
+    ####################
 
-    optimizer = torch.optim.Adam(ddpm.network.parameters(), lr=2e-4)
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer, lr_lambda=lambda t: min((t + 1) / config.warmup_steps, 1.0)
-    )
+    optimizer = torch.optim.Adam(ddpm.network.parameters(), lr=initial_lr)
+    #################### Implement Scheduler
+    # scheduler = torch.optim.lr_scheduler.LambdaLR(
+    #     optimizer, lr_lambda=lambda t: min((t + 1) / config.warmup_steps, 1.0)
+    # )
 
     step = 0
     losses = []
     with tqdm(initial=step, total=config.train_num_steps) as pbar:
         while step < config.train_num_steps:
+            ####################
+            frac_done = step / lr_anneal_steps
+            frac_done = min(frac_done, 1.0)  # frac_done이 1을 넘지 않도록 제한
+            lr = initial_lr * (1 - frac_done)
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = lr
+            ####################
             if step % config.log_interval == 0:
                 ddpm.eval()
                 plt.plot(losses)
@@ -106,7 +124,16 @@ def main(args):
                 for i, img in enumerate(pil_images):
                     img.save(save_dir / f"step={step}-{i}.png")
 
-                ddpm.save(f"{save_dir}/step={step}.ckpt")
+                # ddpm.save(f"{save_dir}/step={step}.ckpt") # 기존 코드
+                ####################
+                # Implement EMA 백업, 저장, 복원 과정 포함
+                original_params = [param.clone() for param in ddpm.network.parameters()]
+                for param, ema_param in zip(ddpm.network.parameters(), ema_params):
+                    param.data.copy_(ema_param.data)
+                ddpm.save(f"{save_dir}/step={step}_ema.ckpt")
+                for param, original_param in zip(ddpm.network.parameters(), original_params):
+                    param.data.copy_(original_param.data)
+                ####################
                 ddpm.train()
 
             img, label = next(train_it)
@@ -122,7 +149,14 @@ def main(args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            scheduler.step()
+            ####################
+            # Implement EMA
+            # EMA 업데이트
+            for param, ema_param in zip(ddpm.network.parameters(), ema_params):
+                ema_param.data.mul_(ema_rate).add_(param.data, alpha=1 - ema_rate)
+            ####################
+
+            # scheduler.step()
             losses.append(loss.item())
 
             step += 1
@@ -132,7 +166,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--batch_size", type=int, default=512)
+    # parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--batch_size", type=int, default=4)
+    
     parser.add_argument(
         "--train_num_steps",
         type=int,
