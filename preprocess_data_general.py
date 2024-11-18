@@ -5,8 +5,8 @@ import h5py
 import json
 from tqdm import tqdm
 
-## 실제로 그리는 stroke일 때 pen_state가 1, 아닐 때 0
-## 시작점의 위치 정보도 포함하여 첫 pen_state는 0이 된다.
+## JSON 파일 없는 일반 Ndjson 데이터에 대해서, 모두 train으로 h5 파일 생성해주는 파이썬 파일
+
 def preprocess_sketch(sketch: list):
     sketch_pos = np.concatenate([np.array(stroke).astype(np.float32) for stroke in sketch], axis=1)
     zero_pos = np.zeros((2,1), dtype=np.float32)

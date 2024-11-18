@@ -45,7 +45,7 @@ def main(args):
     """######"""
 
     ds_module = SketchDataModule(
-        data_path="../data/sketches.h5",
+        data_path=args.what_sketches,
         categories=['cat'],
         Nmax=config.Nmax,
         label_offset=1,
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=512) # originally 4
-    
+    parser.add_argument("--what_sketches", type=str, default="../data/sketches.h5") # 데이터 종류
     parser.add_argument(
         "--train_num_steps",
         type=int,

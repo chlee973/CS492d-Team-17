@@ -118,13 +118,54 @@ class SketchDataset(Dataset):
     def __len__(self):
         return len(self.labels)
 
+    # def __getitem__(self, idx) -> torch.Tensor:
+    #     sketch = np.zeros((self.Nmax, 3))
+    #     actual_length = self.sketches_normalized[idx].shape[0]
+    #     sketch[:actual_length, :] = self.sketches_normalized[idx]
+    #     label = np.array(self.labels[idx], dtype=np.int64)
+    #     return sketch, label
+
     def __getitem__(self, idx) -> torch.Tensor:
-        sketch = np.zeros((self.Nmax, 3))
-        actual_length = self.sketches_normalized[idx].shape[0]
-        sketch[:actual_length, :] = self.sketches_normalized[idx]
+        sketch = self.sketches_normalized[idx]
+        if len(sketch) < self.Nmax:
+            sketch = self.resize_sketch(sketch, self.Nmax)
+        elif len(sketch) > self.Nmax:
+            sketch = sketch[:self.Nmax]
+        # else: length is exactly Nmax, no action needed
+
         label = np.array(self.labels[idx], dtype=np.int64)
         return sketch, label
-    
+
+    def resize_sketch(self, sketch, Nmax):
+        sketch = sketch.copy()
+        while len(sketch) < Nmax:
+            pen_down_indices = np.where(sketch[:, 2] != 1)[0]
+            if len(pen_down_indices) == 0:
+                break
+            dx_dy = sketch[pen_down_indices, :2]
+            lengths = np.sqrt(np.sum(dx_dy ** 2, axis=1))
+            sorted_indices = np.argsort(-lengths)
+            split_occurred = False
+            for idx in pen_down_indices[sorted_indices]:
+                dx, dy, pen_state = sketch[idx]
+                if dx == 0 and dy == 0:
+                    continue
+                new_stroke1 = [dx / 2, dy / 2, pen_state]
+                new_stroke2 = [dx / 2, dy / 2, pen_state]
+                sketch[idx] = new_stroke1
+                sketch = np.insert(sketch, idx + 1, new_stroke2, axis=0)
+                split_occurred = True
+                if len(sketch) >= Nmax:
+                    break
+            if not split_occurred:
+                break
+        if len(sketch) < Nmax:
+            padding = np.zeros((Nmax - len(sketch), 3))
+            sketch = np.vstack([sketch, padding])
+        elif len(sketch) > Nmax:
+            sketch = sketch[:Nmax]
+        return sketch
+
     def max_size(self, sketches):
         sizes = [len(sketch) for sketch in sketches]
         return max(sizes)
