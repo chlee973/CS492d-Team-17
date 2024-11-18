@@ -134,12 +134,12 @@ def main(args):
                     for param, ema_param in zip(ddpm.network.parameters(), ema_params):
                         param.data.copy_(ema_param.data)
                     ddpm.save(f"{save_dir}/step={step}_ema.ckpt")
-                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}_ema.ckpt'])
+                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}_ema.ckpt','--save_name', f"{save_dir}/step={step}-total.png"])
                     for param, original_param in zip(ddpm.network.parameters(), original_params):
                         param.data.copy_(original_param.data)
                 else:
                     ddpm.save(f"{save_dir}/step={step}.ckpt")
-                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}.ckpt'])
+                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}.ckpt','--save_name', f"{save_dir}/step={step}-total.png"])
 
                 ddpm.train()
 

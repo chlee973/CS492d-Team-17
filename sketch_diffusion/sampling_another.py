@@ -131,7 +131,7 @@ def main(args):
             sketch_cv = draw_three(sample, img_size=256)
             tensor = transforms.ToTensor()(sketch_cv)
             all_images.append(tensor)
-    save_image(torch.stack(all_images), 'output.png')
+    save_image(torch.stack(all_images), f"{args.save_name}")
 
 
 if __name__ == "__main__":
@@ -140,6 +140,7 @@ if __name__ == "__main__":
     parser.add_argument("--gpu", type=int, default=0)
     parser.add_argument("--ckpt_path", type=str, default='results/diffusion-ddpm-11-18-135146/step=30000.ckpt')
     parser.add_argument("--save_dir", type=str, default='samples/')
+    parser.add_argument("--save_name", type=str, default='output.png')
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--sample_method", type=str, default="ddpm")
     parser.add_argument("--cfg_scale", type=float, default=7.5)
