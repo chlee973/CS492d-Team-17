@@ -13,6 +13,8 @@ from network import UNet
 from pytorch_lightning import seed_everything
 from scheduler import DDPMScheduler
 from tqdm import tqdm
+import subprocess
+
 
 matplotlib.use("Agg")
 
@@ -125,16 +127,19 @@ def main(args):
                 pil_images = [tensor_to_pil_image(sample) for sample in samples]
                 for i, img in enumerate(pil_images):
                     img.save(save_dir / f"step={step}-{i}.png")
+                
 
                 if config.ema:
                     original_params = [param.clone() for param in ddpm.network.parameters()]
                     for param, ema_param in zip(ddpm.network.parameters(), ema_params):
                         param.data.copy_(ema_param.data)
                     ddpm.save(f"{save_dir}/step={step}_ema.ckpt")
+                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}_ema.ckpt'])
                     for param, original_param in zip(ddpm.network.parameters(), original_params):
                         param.data.copy_(original_param.data)
                 else:
                     ddpm.save(f"{save_dir}/step={step}.ckpt")
+                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}.ckpt'])
 
                 ddpm.train()
 
@@ -171,16 +176,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train_num_steps",
         type=int,
-        default=100000,
-        help="the number of model training steps.",
+        default=500000,
     )
     parser.add_argument("--warmup_steps", type=int, default=200)
     parser.add_argument("--log_interval", type=int, default=2000)
     parser.add_argument(
         "--num_diffusion_train_timesteps",
         type=int,
-        default=1000,
-        help="diffusion Markov chain num steps",
+        default=100, #100 origin
     )
     parser.add_argument("--beta_1", type=float, default=1e-4)
     parser.add_argument("--beta_T", type=float, default=0.02)
