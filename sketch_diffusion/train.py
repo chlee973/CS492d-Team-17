@@ -32,7 +32,7 @@ def main(args):
 
     now = get_current_time()
     if args.use_cfg:
-        save_dir = Path(f"results/cfg_diffusion-{args.sample_method}-{now}")
+        save_dir = Path(f"results/cfg_diffusion-{args.sample_method}-{now}-{args.add_name}")
     else:
         save_dir = Path(f"results/diffusion-{args.sample_method}-{now}")
     save_dir.mkdir(exist_ok=True, parents=True)
@@ -192,7 +192,8 @@ if __name__ == "__main__":
     parser.add_argument("--sample_method", type=str, default="ddpm")
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--cfg_dropout", type=float, default=0.1)
-    parser.add_argument("--ema", type=int, default=0)
-    parser.add_argument("--default_scheduler", type=int, default=0)
+    parser.add_argument("--ema", type=int, default=1)
+    parser.add_argument("--default_scheduler", type=int, default=1)
+    parser.add_argument("--add_name", type=str, default="ema-scheduler")
     args = parser.parse_args()
     main(args)
