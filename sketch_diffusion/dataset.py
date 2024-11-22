@@ -17,7 +17,7 @@ def pen_state_to_binary(x):
     assert x.shape[-1] == 4
     x_clone = x.clone()
     pen_states0 = x_clone[:, :, 2]
-    ones = pen_states0 < 2
+    ones = pen_states0 < 0.5
     binary_pen_states = torch.zeros_like(pen_states0, dtype=pen_states0.dtype, device=pen_states0.device)
     binary_pen_states[ones] = 1
     result = torch.cat((x_clone[:, :, :2], binary_pen_states[:, :, None]), dim=-1)
@@ -41,18 +41,14 @@ def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30
 
     current_x, current_y = start_x + padding//2, start_y + padding//2
     
-    skip_line = False
     for dx, dy, pen_state in sketch:
         next_x = current_x + dx
         next_y = current_y + dy
 
-        if skip_line:
+        if pen_state == 0:
             draw.line([current_x, current_y, next_x, next_y], fill="yellow", width=1)
-            skip_line = False
         else:
             draw.line([current_x, current_y, next_x, next_y], fill="black", width=1)
-            if pen_state == 1:
-                skip_line = True
         current_x, current_y = next_x, next_y
     
     return image
@@ -109,10 +105,13 @@ class SketchDataset(Dataset):
         
         # Purify & normalize sketches
         sketches, labels = self.purify(sketches, labels)
-
-        self.sketches = sketches
-        self.sketches_normalized = self.normalize(sketches)
         self.labels = labels
+
+        sketches_normalized = self.normalize(sketches)
+        self.sketches_normalized = []
+        for sketch in sketches_normalized:
+            resized_sketch = self.resize_sketch(sketch, Nmax)
+            self.sketches_normalized.append(resized_sketch)
 
         
     def __len__(self):
@@ -125,21 +124,23 @@ class SketchDataset(Dataset):
     #     label = np.array(self.labels[idx], dtype=np.int64)
     #     return sketch, label
 
+    # def __getitem__(self, idx) -> torch.Tensor:
+    #     sketch = self.sketches_normalized[idx]
+    #     if len(sketch) < self.Nmax:
+    #         sketch = self.resize_sketch(sketch, self.Nmax)
+    #     elif len(sketch) > self.Nmax:
+    #         sketch = sketch[:self.Nmax]
+    #     # else: length is exactly Nmax, no action needed
+    
     def __getitem__(self, idx) -> torch.Tensor:
         sketch = self.sketches_normalized[idx]
-        if len(sketch) < self.Nmax:
-            sketch = self.resize_sketch(sketch, self.Nmax)
-        elif len(sketch) > self.Nmax:
-            sketch = sketch[:self.Nmax]
-        # else: length is exactly Nmax, no action needed
-
         label = np.array(self.labels[idx], dtype=np.int64)
         return sketch, label
 
     def resize_sketch(self, sketch, Nmax):
         sketch = sketch.copy()
         while len(sketch) < Nmax:
-            pen_down_indices = np.where(sketch[:, 2] != 1)[0]
+            pen_down_indices = np.where(sketch[:, 2] == 1)[0]
             if len(pen_down_indices) == 0:
                 break
             dx_dy = sketch[pen_down_indices, :2]
