@@ -16,12 +16,10 @@ def pen_state_to_binary(x):
     # 마지막 차원에 softmax를 취해야함
     assert x.shape[-1] == 4
     x_clone = x.clone()
-    pen_states0 = x_clone[:, :, 2]
-    ones = pen_states0 < 0.5
-    binary_pen_states = torch.zeros_like(pen_states0, dtype=pen_states0.dtype, device=pen_states0.device)
-    binary_pen_states[ones] = 1
-    result = torch.cat((x_clone[:, :, :2], binary_pen_states[:, :, None]), dim=-1)
-    assert result.shape[-1] == 3
+    vectors = x_clone[:, :, :2]
+    pen_states = F.softmax(x_clone[:, :, 2:], dim=-1)
+    pen_states = pen_states.argmax(dim=-1)
+    result = torch.cat((vectors, pen_states[:, :, None]), dim=-1)
     return result
 
 def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30):
