@@ -171,29 +171,32 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--batch_size", type=int, default=512) # originally 4
+    # DataLoader
     parser.add_argument("--what_sketches", type=str, default="./data/sketches.h5") # 데이터 종류
-    parser.add_argument(
-        "--train_num_steps",
-        type=int,
-        default=500000,
-    )
+
+    # Trainer & Logger & Scheduler
+    parser.add_argument("--batch_size", type=int, default=512) # originally 4
+    parser.add_argument("--train_num_steps", type=int, default=500000)
     parser.add_argument("--warmup_steps", type=int, default=200)
     parser.add_argument("--log_interval", type=int, default=2000)
+    parser.add_argument("--seed", type=int, default=63)
+    parser.add_argument("--default_scheduler", type=int, default=1)
+    parser.add_argument("--ema", type=int, default=1)
+
+    # Diffusion Scheduler
+    parser.add_argument("--beta_1", type=float, default=1e-4)
+    parser.add_argument("--beta_T", type=float, default=0.02)
     parser.add_argument(
         "--num_diffusion_train_timesteps",
         type=int,
         default=100, #100 origin
     )
-    parser.add_argument("--beta_1", type=float, default=1e-4)
-    parser.add_argument("--beta_T", type=float, default=0.02)
-    parser.add_argument("--seed", type=int, default=63)
-    parser.add_argument("--Nmax", type=int, default=96)
     parser.add_argument("--sample_method", type=str, default="ddpm")
+
+    # Network
+    parser.add_argument("--Nmax", type=int, default=96)
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--cfg_dropout", type=float, default=0.1)
-    parser.add_argument("--ema", type=int, default=1)
-    parser.add_argument("--default_scheduler", type=int, default=1)
     parser.add_argument("--add_name", type=str, default="ema-scheduler")
     args = parser.parse_args()
     main(args)
