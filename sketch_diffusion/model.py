@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from scheduler import BaseScheduler
+from .scheduler import BaseScheduler
 
 
 class DiffusionModule(nn.Module):

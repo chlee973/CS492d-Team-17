@@ -6,12 +6,12 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import torch
-from dataset import SketchDataModule, get_data_iterator, pen_state_to_binary, tensor_to_pil_image
+from sketch_diffusion.dataset import SketchDataModule, get_data_iterator, pen_state_to_binary, tensor_to_pil_image
 from dotmap import DotMap
-from model import DiffusionModule
-from network import UNet
+from sketch_diffusion.model import DiffusionModule
+from sketch_diffusion.network import UNet
 from pytorch_lightning import seed_everything
-from scheduler import DDPMScheduler
+from sketch_diffusion.scheduler import DDPMScheduler
 from tqdm import tqdm
 import subprocess
 
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=512) # originally 4
-    parser.add_argument("--what_sketches", type=str, default="../data/sketches.h5") # 데이터 종류
+    parser.add_argument("--what_sketches", type=str, default="./data/sketches.h5") # 데이터 종류
     parser.add_argument(
         "--train_num_steps",
         type=int,

@@ -2,9 +2,9 @@ import argparse
 
 import numpy as np
 import torch
-from dataset import pen_state_to_binary, tensor_to_pil_image
-from model import DiffusionModule
-from scheduler import DDPMScheduler
+from sketch_diffusion.dataset import pen_state_to_binary, tensor_to_pil_image
+from sketch_diffusion.model import DiffusionModule
+from sketch_diffusion.scheduler import DDPMScheduler
 from pathlib import Path
 
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--gpu", type=int, default=0)
-    parser.add_argument("--ckpt_path", type=str, default='results/diffusion-ddpm-11-18-120918/step=12000_ema.ckpt')
+    parser.add_argument("--ckpt_path", type=str, required=True)
     parser.add_argument("--save_dir", type=str, default='samples/')
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--sample_method", type=str, default="ddpm")

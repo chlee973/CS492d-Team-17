@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image, ImageDraw
 import h5py
 
-from sketch_util import scale_sketch, sketch_size
+from .sketch_util import scale_sketch, sketch_size
 
 def pen_state_to_binary(x):
     # x: [B, C, 4] 
