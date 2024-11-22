@@ -82,7 +82,7 @@ class AttnBlock(nn.Module):
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, tdim, dropout, attn=False):
+    def __init__(self, in_ch, out_ch, tdim, dropout, attn=False, num_heads=4):
         super().__init__()
         self.block1 = nn.Sequential(
             nn.GroupNorm(32, in_ch),
@@ -104,7 +104,7 @@ class ResBlock(nn.Module):
         else:
             self.shortcut = nn.Identity()
         if attn:
-            self.attn = AttnBlock(out_ch, num_heads=4)
+            self.attn = AttnBlock(out_ch, num_heads=num_heads)
         else:
             self.attn = nn.Identity()
         self.initialize()

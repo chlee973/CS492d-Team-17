@@ -46,7 +46,7 @@ def main(args):
 
     ds_module = SketchDataModule(
         data_path=args.what_sketches,
-        categories=['cat'],
+        categories=config.categories,
         Nmax=config.Nmax,
         label_offset=1,
         batch_size=config.batch_size,
@@ -67,12 +67,12 @@ def main(args):
     print(var_scheduler.register_buffer)
     
     network = UNet(
-        T=config.num_diffusion_train_timesteps,
         ch=config.Nmax,
         ch_mult=[1, 2, 3, 4],
-        attn=[1],
-        num_res_blocks=3,
-        dropout=0.1,
+        attn=[],
+        num_res_blocks=config.num_res_blocks,
+        num_heads=config.num_heads,
+        dropout=config.dropout,
         use_cfg=args.use_cfg,
         cfg_dropout=args.cfg_dropout,
         num_classes=getattr(ds_module, "num_classes", None),
@@ -173,6 +173,8 @@ if __name__ == "__main__":
     parser.add_argument("--gpu", type=int, default=0)
     # DataLoader
     parser.add_argument("--what_sketches", type=str, default="./data/sketches.h5") # 데이터 종류
+    parser.add_argument('--categories', nargs='+', type=str)    
+
 
     # Trainer & Logger & Scheduler
     parser.add_argument("--batch_size", type=int, default=512) # originally 4
@@ -180,8 +182,8 @@ if __name__ == "__main__":
     parser.add_argument("--warmup_steps", type=int, default=200)
     parser.add_argument("--log_interval", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=63)
-    parser.add_argument("--default_scheduler", type=int, default=1)
-    parser.add_argument("--ema", type=int, default=1)
+    parser.add_argument("--default_scheduler", type=int, default=0)
+    parser.add_argument("--ema", type=int, default=0)
 
     # Diffusion Scheduler
     parser.add_argument("--beta_1", type=float, default=1e-4)
@@ -195,7 +197,10 @@ if __name__ == "__main__":
 
     # Network
     parser.add_argument("--Nmax", type=int, default=96)
+    parser.add_argument("--num_res_blocks", type=int, default=3)
+    parser.add_argument("--num_heads", type=int, default=4)
     parser.add_argument("--use_cfg", action="store_true")
+    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--cfg_dropout", type=float, default=0.1)
     parser.add_argument("--add_name", type=str, default="ema-scheduler")
     args = parser.parse_args()

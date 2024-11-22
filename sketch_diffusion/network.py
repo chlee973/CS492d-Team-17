@@ -9,7 +9,7 @@ from torch.nn import init
 
 
 class UNet(nn.Module):
-    def __init__(self, T=1000, ch=96, ch_mult=[1,2,3,4], attn=[], num_res_blocks=3, dropout=0.1, use_cfg=False, cfg_dropout=0.1, num_classes=None):
+    def __init__(self, ch=96, ch_mult=[1,2,3,4], attn=[], num_res_blocks=3, num_heads=4, dropout=0.1, use_cfg=False, cfg_dropout=0.1, num_classes=None):
         super().__init__()
         assert all([i < len(ch_mult) for i in attn]), 'attn index out of bound'
         self.Nmax = ch
@@ -33,7 +33,7 @@ class UNet(nn.Module):
             for _ in range(num_res_blocks):
                 self.downblocks.append(ResBlock(
                     in_ch=now_ch, out_ch=out_ch, tdim=tdim,
-                    dropout=dropout, attn=(i in attn)))
+                    dropout=dropout, attn=(i in attn), num_heads=num_heads))
                 now_ch = out_ch
                 chs.append(now_ch)
             if i != len(ch_mult) - 1:
@@ -41,8 +41,8 @@ class UNet(nn.Module):
                 chs.append(now_ch)
 
         self.middleblocks = nn.ModuleList([
-            ResBlock(now_ch, now_ch, tdim, dropout, attn=True),
-            ResBlock(now_ch, now_ch, tdim, dropout, attn=False),
+            ResBlock(now_ch, now_ch, tdim, dropout, attn=True, num_heads=num_heads),
+            ResBlock(now_ch, now_ch, tdim, dropout, attn=False, num_heads=num_heads),
         ])
 
         self.upblocks = nn.ModuleList()
@@ -51,7 +51,7 @@ class UNet(nn.Module):
             for _ in range(num_res_blocks + 1):
                 self.upblocks.append(ResBlock(
                     in_ch=chs.pop() + now_ch, out_ch=out_ch, tdim=tdim,
-                    dropout=dropout, attn=(i in attn)))
+                    dropout=dropout, attn=(i in attn), num_heads=num_heads))
                 now_ch = out_ch
             if i != 0:
                 self.upblocks.append(UpSample(now_ch))
