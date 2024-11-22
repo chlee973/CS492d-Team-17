@@ -11,10 +11,6 @@ class BaseScheduler(nn.Module):
     ):
         super().__init__()
         self.num_train_timesteps = num_train_timesteps
-        self.num_inference_timesteps = num_train_timesteps
-        self.timesteps = torch.from_numpy(
-            np.arange(0, self.num_train_timesteps)[::-1].copy().astype(np.int64)
-        )
 
         if mode == "linear":
             betas = torch.linspace(beta_1, beta_T, steps=num_train_timesteps)
@@ -71,7 +67,7 @@ class DDPMScheduler(BaseScheduler):
 
         self.register_buffer("sigmas", sigmas)
 
-    def step(self, x_t: torch.Tensor, t: int, noise_pred: torch.Tensor):
+    def p_sample(self, x_t: torch.Tensor, t: int, noise_pred: torch.Tensor):
         """
         One step denoising function of DDPM: x_t -> x_{t-1}.
 
@@ -101,12 +97,32 @@ class DDPMScheduler(BaseScheduler):
         
         return sample_prev
     
+    def ddim_p_sample(self, x_t: torch.Tensor, t: int, t_prev: int, noise_pred: torch.Tensor, eta=0.0):
+        alphas_cumprod_t = self._get_teeth(self.alphas_cumprod, t)
+        if t_prev >= 0:
+            alphas_cumprod_t_prev = self._get_teeth(self.alphas_cumprod, t_prev)
+        else:
+            alphas_cumprod_t_prev = torch.ones_like(alphas_cumprod_t, device=alphas_cumprod_t.device)
+        beta_t = self._get_teeth(self.betas, t)
+        x_0_pred = (x_t-(1-alphas_cumprod_t).sqrt()*noise_pred)/alphas_cumprod_t.sqrt()
+        sigma = eta * ((1-alphas_cumprod_t_prev)*beta_t/(1-alphas_cumprod_t)).sqrt()
+        if t_prev >= 0:
+            noise = torch.randn_like(x_t, device=x_t.device)
+        else:
+            noise = torch.zeros_like(x_t, device=x_t.device)
+        mean = alphas_cumprod_t_prev.sqrt()*x_0_pred + (1-alphas_cumprod_t_prev-sigma**2).sqrt() * noise_pred
+        x_t_prev = mean + sigma * noise
+
+        ######################
+        return x_t_prev
+
+    
     # https://nn.labml.ai/diffusion/ddpm/utils.html
     def _get_teeth(self, consts: torch.Tensor, t: torch.Tensor): # get t th const 
         const = consts.gather(-1, t)
         return const.reshape(-1, 1, 1)
     
-    def add_noise(
+    def q_sample(
         self,
         x_0: torch.Tensor,
         t: torch.IntTensor,

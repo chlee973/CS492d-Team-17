@@ -14,7 +14,8 @@ python train.py \
     --beta_1 1e-4 \
     --beta_T 0.02 \
     --num_diffusion_train_timesteps 100 \
-    --sample_method ddpm \
+    --num_inference_timesteps 20 \
+    --sample_method ddim \
     --Nmax 96 \
     --num_res_blocks 3 \
     --num_heads 4 \

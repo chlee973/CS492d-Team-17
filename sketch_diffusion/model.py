@@ -26,7 +26,7 @@ class DiffusionModule(nn.Module):
         pen_state = x0[:, :, 2]
         if noise is None:
             noise = torch.randn_like(x0[:, :, :2], device=self.device)
-        xt, noise = self.var_scheduler.add_noise(x0[:, :, :2], timestep, noise)
+        xt, noise = self.var_scheduler.q_sample(x0[:, :, :2], timestep, noise)
 
         noise_pred, pen_state_pred = self.network(xt, timestep, class_label)
 
@@ -51,6 +51,8 @@ class DiffusionModule(nn.Module):
     def sample(
         self,
         batch_size,
+        num_inference_timesteps,
+        eta=0.0,
         return_traj=False,
         class_label: Optional[torch.Tensor] = None,
         guidance_scale: Optional[float] = 0.0,
@@ -72,7 +74,15 @@ class DiffusionModule(nn.Module):
 
         traj = [x_T]
         pen_state_traj = []
-        for t in self.var_scheduler.timesteps:
+        step_ratio = self.var_scheduler.num_train_timesteps // num_inference_timesteps
+        timesteps = torch.from_numpy(
+            (np.arange(0, num_inference_timesteps) * step_ratio)
+            .round()[::-1]
+            .copy()
+            .astype(np.int64)
+        )
+        prev_timesteps = timesteps - step_ratio
+        for t, t_prev in zip(timesteps, prev_timesteps):
             x_t = traj[-1]
             if do_classifier_free_guidance:
                 ######## TODO ########
@@ -86,7 +96,7 @@ class DiffusionModule(nn.Module):
                     class_label=class_label,
                 )
 
-            x_t_prev = self.var_scheduler.step(x_t, t, noise_pred)
+            x_t_prev = self.var_scheduler.ddim_p_sample(x_t, t.to(self.device), t_prev.to(self.device), noise_pred, eta)
             
             traj[-1] = traj[-1].cpu()
             traj.append(x_t_prev.detach())

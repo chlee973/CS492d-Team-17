@@ -30,6 +30,15 @@ def main(args):
     total_num_samples = 20
     num_batches = int(np.ceil(total_num_samples / args.batch_size))
 
+    if args.sample_method == 'ddpm':
+        ## DDPM Sampling
+        num_inference_timesteps = num_train_timesteps
+        eta = 1.0
+    else:
+        # DDIM Sampling
+        num_inference_timesteps = args.num_inference_timesteps
+        eta = 0.0
+
     for i in range(num_batches):
         sidx = i * args.batch_size
         eidx = min(sidx + args.batch_size, total_num_samples)
@@ -40,12 +49,16 @@ def main(args):
             vectors, pen_states = ddpm.sample(
                 B,
                 class_label=torch.randint(1, 4, (B,)),
+                num_inference_timesteps=num_inference_timesteps,
+                eta=eta,
                 guidance_scale=args.cfg_scale,
             )
         else:
             vectors, pen_states = ddpm.sample(
                 B,
                 class_label=torch.randint(1, 4, (B,)),
+                num_inference_timesteps=num_inference_timesteps,
+                eta=eta,
                 guidance_scale=0.0,
             )
 
@@ -65,7 +78,8 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt_path", type=str, required=True)
     parser.add_argument("--save_dir", type=str, default='samples/')
     parser.add_argument("--use_cfg", action="store_true")
-    parser.add_argument("--sample_method", type=str, default="ddpm")
+    parser.add_argument("--sample_method", type=str, choices=['ddpm', 'ddim'], default="ddim")
+    parser.add_argument("--num_inference_timesteps", type=int, default=20)
     parser.add_argument("--cfg_scale", type=float, default=7.5)
 
     args = parser.parse_args()

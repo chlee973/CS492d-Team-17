@@ -113,14 +113,30 @@ def main(args):
                 plt.plot(losses)
                 plt.savefig(f"{save_dir}/loss.png")
                 plt.close()
+
+                if config.sample_method == 'ddpm':
+                    eta = 1.0
+                    num_inference_timesteps = config.num_diffusion_train_timesteps
+                else:
+                    # ddim
+                    eta = 0.0
+                    num_inference_timesteps = config.num_inference_timesteps
+
                 if args.use_cfg:  # Conditional, CFG training
                     vectors, pen_states = ddpm.sample(
                         4,
                         class_label=torch.randint(1, 4, (4,)).to(config.device),
+                        num_inference_timesteps=num_inference_timesteps,
+                        eta=eta,
                         return_traj=False,
                     )
                 else:  # Unconditional training
-                    vectors, pen_states = ddpm.sample(4, return_traj=False)
+                    vectors, pen_states = ddpm.sample(
+                        4, 
+                        num_inference_timesteps=num_inference_timesteps,
+                        eta=eta,
+                        return_traj=False
+                    )
 
                 samples = torch.cat((vectors, pen_states), dim=-1)
                 samples = pen_state_to_binary(samples)
@@ -188,12 +204,9 @@ if __name__ == "__main__":
     # Diffusion Scheduler
     parser.add_argument("--beta_1", type=float, default=1e-4)
     parser.add_argument("--beta_T", type=float, default=0.02)
-    parser.add_argument(
-        "--num_diffusion_train_timesteps",
-        type=int,
-        default=100, #100 origin
-    )
-    parser.add_argument("--sample_method", type=str, default="ddpm")
+    parser.add_argument("--num_diffusion_train_timesteps", type=int, default=100)#100 origin
+    parser.add_argument("--num_inference_timesteps", type=int, default=20)#100 origin
+    parser.add_argument("--sample_method", type=str, choices=['ddpm', 'ddim'], default="ddim")
 
     # Network
     parser.add_argument("--Nmax", type=int, default=96)
