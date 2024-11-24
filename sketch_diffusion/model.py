@@ -15,7 +15,7 @@ class DiffusionModule(nn.Module):
         self.network = network
         self.var_scheduler = var_scheduler
 
-    def get_loss(self, x0, class_label=None, noise=None):
+    def get_loss(self, x0, pen_state_loss_weight, class_label=None, noise=None):
         ######## TODO ########
         # DO NOT change the code outside this part.
         # compute noise matching loss.
@@ -35,7 +35,7 @@ class DiffusionModule(nn.Module):
         pen_state_pred = pen_state_pred.reshape(-1, 2).type(torch.FloatTensor)
         pen_state = pen_state.reshape(-1,).type(torch.LongTensor)
 
-        loss = noise_criterion(noise_pred, noise) + 0.01 * pen_state_criterion(pen_state_pred, pen_state)
+        loss = noise_criterion(noise_pred, noise) + pen_state_loss_weight * pen_state_criterion(pen_state_pred, pen_state)
         ######################
         return loss
     

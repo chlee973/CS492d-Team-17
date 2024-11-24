@@ -108,8 +108,10 @@ class SketchDataset(Dataset):
         sketches_normalized = self.normalize(sketches)
         self.sketches_normalized = []
         for sketch in sketches_normalized:
-            resized_sketch = self.resize_sketch(sketch, Nmax)
-            self.sketches_normalized.append(resized_sketch)
+            # resized_sketch = self.resize_sketch(sketch, Nmax)
+            # self.sketches_normalized.append(resized_sketch)
+            zeropadded_sketch = self.zeropad_sektch(sketch, Nmax)
+            self.sketches_normalized.append(zeropadded_sketch)
 
         
     def __len__(self):
@@ -135,6 +137,13 @@ class SketchDataset(Dataset):
         label = np.array(self.labels[idx], dtype=np.int64)
         return sketch, label
 
+    def zeropad_sektch(self, sketch, Nmax):
+        sketch = sketch.copy()
+        if len(sketch) < Nmax:
+            padding = np.zeros((Nmax - len(sketch), 3))
+            sketch = np.vstack([sketch, padding])
+        return sketch
+    
     def resize_sketch(self, sketch, Nmax):
         sketch = sketch.copy()
         while len(sketch) < Nmax:

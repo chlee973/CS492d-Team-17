@@ -14,6 +14,7 @@ from pytorch_lightning import seed_everything
 from sketch_diffusion.scheduler import DDPMScheduler
 from tqdm import tqdm
 import subprocess
+from PIL import Image
 
 
 matplotlib.use("Agg")
@@ -34,7 +35,7 @@ def main(args):
     if args.use_cfg:
         save_dir = Path(f"results/cfg_diffusion-{args.sample_method}-{now}-{args.add_name}")
     else:
-        save_dir = Path(f"results/diffusion-{args.sample_method}-{now}")
+        save_dir = Path(f"results/diffusion-{args.sample_method}-{now}-{args.add_name}")
     save_dir.mkdir(exist_ok=True, parents=True)
     print(f"save_dir: {save_dir}")
 
@@ -141,31 +142,28 @@ def main(args):
                 samples = torch.cat((vectors, pen_states), dim=-1)
                 samples = pen_state_to_binary(samples)
                 pil_images = [tensor_to_pil_image(sample) for sample in samples]
-                for i, img in enumerate(pil_images):
-                    img.save(save_dir / f"step={step}-{i}.png")
-                
 
-                if config.ema:
-                    original_params = [param.clone() for param in ddpm.network.parameters()]
-                    for param, ema_param in zip(ddpm.network.parameters(), ema_params):
-                        param.data.copy_(ema_param.data)
-                    ddpm.save(f"{save_dir}/step={step}_ema.ckpt")
-                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}_ema.ckpt','--save_name', f"{save_dir}/step={step}-total.png"])
-                    for param, original_param in zip(ddpm.network.parameters(), original_params):
-                        param.data.copy_(original_param.data)
-                else:
-                    ddpm.save(f"{save_dir}/step={step}.ckpt")
-                    subprocess.run(['python', 'sampling_another.py', '--ckpt_path', f'{save_dir}/step={step}.ckpt','--save_name', f"{save_dir}/step={step}-total.png"])
-
+                widths, heights = zip(*(img.size for img in pil_images))
+                total_width = sum(widths)
+                max_height = max(heights)
+                new_image = Image.new("RGB", (total_width, max_height))
+                x_offset = 0
+                for img in pil_images:
+                    new_image.paste(img, (x_offset, 0))
+                    x_offset += img.width
+                new_image.save(save_dir / f"step={step}-total.png")
+                # for i, img in enumerate(pil_images):
+                #     img.save(save_dir / f"step={step}-{i}.png")
+                ddpm.save(f"{save_dir}/last.ckpt")
                 ddpm.train()
 
             img, label = next(train_it)
             img, label = img.to(config.device).to(torch.float32), label.to(torch.float32)
 
             if args.use_cfg:  # Conditional, CFG training
-                loss = ddpm.get_loss(img, class_label=label)
+                loss = ddpm.get_loss(img, class_label=label, pen_state_loss_weight=args.pen_state_loss_weight)
             else:  # Unconditional training
-                loss = ddpm.get_loss(img)
+                loss = ddpm.get_loss(img, pen_state_loss_weight=args.pen_state_loss_weight)
             
             pbar.set_description(f"Loss: {loss.item():.4f}")
 
@@ -200,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=63)
     parser.add_argument("--default_scheduler", type=int, default=0)
     parser.add_argument("--ema", type=int, default=0)
+    parser.add_argument("--pen_state_loss_weight", type=float, default=0.5)
 
     # Diffusion Scheduler
     parser.add_argument("--beta_1", type=float, default=1e-4)
