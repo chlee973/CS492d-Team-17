@@ -3,8 +3,8 @@ import argparse
 from cleanfid import fid
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--fdir1", type=str, default="./test_data")
-parser.add_argument("--fdir2", type=str, default="./test_data_2")
+parser.add_argument("--fdir1", type=str, default="./sketch_data/cat/images_test")
+parser.add_argument("--fdir2", type=str, default="./sketch_diffusion/results/diffusion-ddpm-11-19-132249 - ema,sch")
 args = parser.parse_args()
 
 # compute FID

@@ -2,6 +2,9 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
+import os
+from cleanfid import fid
+
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -15,6 +18,9 @@ from sketch_diffusion.scheduler import DDPMScheduler
 from tqdm import tqdm
 import subprocess
 from PIL import Image
+from sampling_test import run_test_sampling
+from sampling_another import run_another_sampling
+
 
 
 matplotlib.use("Agg")
@@ -151,10 +157,50 @@ def main(args):
                 for img in pil_images:
                     new_image.paste(img, (x_offset, 0))
                     x_offset += img.width
-                new_image.save(save_dir / f"step={step}-total.png")
-                # for i, img in enumerate(pil_images):
-                #     img.save(save_dir / f"step={step}-{i}.png")
+                new_image.save(save_dir / f"step={step}-total-1.png")
                 ddpm.save(f"{save_dir}/last.ckpt")
+                # Additional images sampling
+                args_another = argparse.Namespace(
+                    ckpt_path=f"{save_dir}/last.ckpt",
+                    save_dir=save_dir,
+                    sample_method="ddim",
+                    gpu=0,
+                    save_name=f"{save_dir}/step={step}-total-2.png",
+                    batch_size=4,
+                    total_samples=8,
+                    img_size=256,
+                    use_cfg=False,
+                    num_inference_timesteps=20,
+                    cfg_scale=7.5,
+                )
+                run_another_sampling(args_another)
+                
+                if step % config.test_interval == 0:
+                    args_test = argparse.Namespace(
+                        ckpt_path=f"{save_dir}/last.ckpt",
+                        save_dir=f"{save_dir}/step={step}-test",
+                        sample_method="ddim",
+                        gpu=0,
+                        batch_size=4,
+                        total_samples=8,
+                        img_size=256,
+                        use_cfg=False,
+                        num_inference_timesteps=20,
+                        cfg_scale=7.5,
+                    )
+
+                    run_test_sampling(args_test)
+                    fdir1="./sketch_data/cat/images_test"
+                    fdir2=f"{save_dir}/step={step}-test"
+                    
+                    # compute FID
+                    score_fid = fid.compute_fid(fdir1, fdir2)
+                    score_kid = fid.compute_kid(fdir1, fdir2)
+
+                    print("========================")
+                    print(f"- FID score: {score_fid}")
+                    print(f"- KID score: {score_kid}")
+                    print("========================")
                 ddpm.train()
 
             img, label = next(train_it)
@@ -195,6 +241,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_num_steps", type=int, default=500000)
     parser.add_argument("--warmup_steps", type=int, default=200)
     parser.add_argument("--log_interval", type=int, default=2000)
+    parser.add_argument("--test_interval", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=63)
     parser.add_argument("--default_scheduler", type=int, default=0)
     parser.add_argument("--ema", type=int, default=0)
