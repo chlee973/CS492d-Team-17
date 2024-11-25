@@ -52,6 +52,7 @@ def main(args):
                 num_inference_timesteps=num_inference_timesteps,
                 eta=eta,
                 guidance_scale=args.cfg_scale,
+                penstate_in_model = args.penstate_in_model,
             )
         else:
             vectors, pen_states = ddpm.sample(
@@ -60,6 +61,7 @@ def main(args):
                 num_inference_timesteps=num_inference_timesteps,
                 eta=eta,
                 guidance_scale=0.0,
+                penstate_in_model = args.penstate_in_model,
             )
 
         samples = torch.cat((vectors, pen_states), dim=-1)

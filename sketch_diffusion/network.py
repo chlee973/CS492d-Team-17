@@ -9,7 +9,7 @@ from torch.nn import init
 
 
 class UNet(nn.Module):
-    def __init__(self, ch=96, ch_mult=[1,2,3,4], attn=[], num_res_blocks=3, num_heads=4, dropout=0.1, use_cfg=False, cfg_dropout=0.1, num_classes=None):
+    def __init__(self, ch=96, ch_mult=[1,2,3,4], attn=[], num_res_blocks=3, num_heads=4, dropout=0.1, use_cfg=False, cfg_dropout=0.1, num_classes=None,penstate_in_model = 0):
         super().__init__()
         assert all([i < len(ch_mult) for i in attn]), 'attn index out of bound'
         self.Nmax = ch
@@ -23,8 +23,9 @@ class UNet(nn.Module):
             assert num_classes is not None
             cdim = tdim
             self.class_embedding = nn.Embedding(num_classes+1, cdim)
-
-        self.head = nn.Linear(2, 128)
+        
+        
+        self.head = nn.Linear(penstate_in_model+2, 128)
         self.downblocks = nn.ModuleList()
         chs = [ch]  # record output channel when dowmsample for upsample
         now_ch = ch

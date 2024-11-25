@@ -105,6 +105,7 @@ def run_test_sampling(args):
                 num_inference_timesteps=num_inference_timesteps,
                 eta=eta,
                 guidance_scale=args.cfg_scale,
+                penstate_in_model = args.penstate_in_model,
             )
         else:
             vectors, pen_states = ddpm.sample(
@@ -113,6 +114,7 @@ def run_test_sampling(args):
                 num_inference_timesteps=num_inference_timesteps,
                 eta=eta,
                 guidance_scale=0.0,
+                penstate_in_model = args.penstate_in_model,
             )
 
         samples = torch.cat((vectors, pen_states), dim=-1)
@@ -125,4 +127,4 @@ def run_test_sampling(args):
             cv2.imwrite(str(image_path), sketch_cv)
             sample_count += 1
 
-    print(f"{sample_count}개의 이미지가 '{images_dir}' 폴더에 저장되었습니다.")
+    # print(f"{sample_count}개의 이미지가 '{images_dir}' 폴더에 저장되었습니다.")

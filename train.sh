@@ -8,9 +8,11 @@ python train.py \
     --train_num_steps 100000 \
     --warmup_steps 200 \
     --log_interval 2000 \
+    --test_interval 20000 \
     --seed 63 \
     --default_scheduler 0 \
     --ema 0 \
+    --penstate_in_model 1 \
     --beta_1 1e-4 \
     --beta_T 0.02 \
     --num_diffusion_train_timesteps 100 \
