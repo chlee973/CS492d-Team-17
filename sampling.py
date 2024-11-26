@@ -27,7 +27,7 @@ def main(args):
         mode="linear",
     ).to(device)
 
-    total_num_samples = 20
+    total_num_samples = args.num_samples
     num_batches = int(np.ceil(total_num_samples / args.batch_size))
 
     if args.sample_method == 'ddpm':
@@ -80,6 +80,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--sample_method", type=str, choices=['ddpm', 'ddim'], default="ddim")
     parser.add_argument("--num_inference_timesteps", type=int, default=20)
+    parser.add_argument("--num_samples", type=int, default=20)
     parser.add_argument("--cfg_scale", type=float, default=7.5)
 
     args = parser.parse_args()

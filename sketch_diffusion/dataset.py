@@ -22,7 +22,7 @@ def pen_state_to_binary(x):
     result = torch.cat((vectors, pen_states[:, :, None]), dim=-1)
     return result
 
-def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30):
+def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30, show_hidden=False):
     # tensor: [C, 3]
     assert tensor.ndim == 2 and tensor.shape[1] == 3
     if tensor.is_cuda:
@@ -43,7 +43,7 @@ def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30
         next_x = current_x + dx
         next_y = current_y + dy
 
-        if pen_state == 0:
+        if pen_state == 0 and show_hidden:
             draw.line([current_x, current_y, next_x, next_y], fill="yellow", width=1)
         else:
             draw.line([current_x, current_y, next_x, next_y], fill="black", width=1)

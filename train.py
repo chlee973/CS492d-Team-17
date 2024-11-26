@@ -131,7 +131,7 @@ def main(args):
 
                 if args.use_cfg:  # Conditional, CFG training
                     vectors, pen_states = ddpm.sample(
-                        4,
+                        8,
                         class_label=torch.randint(1, 4, (4,)).to(config.device),
                         num_inference_timesteps=num_inference_timesteps,
                         eta=eta,
@@ -139,7 +139,7 @@ def main(args):
                     )
                 else:  # Unconditional training
                     vectors, pen_states = ddpm.sample(
-                        4, 
+                        8, 
                         num_inference_timesteps=num_inference_timesteps,
                         eta=eta,
                         return_traj=False
@@ -147,7 +147,7 @@ def main(args):
 
                 samples = torch.cat((vectors, pen_states), dim=-1)
                 samples = pen_state_to_binary(samples)
-                pil_images = [tensor_to_pil_image(sample) for sample in samples]
+                pil_images = [tensor_to_pil_image(sample, show_hidden=True) for sample in samples]
 
                 widths, heights = zip(*(img.size for img in pil_images))
                 total_width = sum(widths)
@@ -159,21 +159,6 @@ def main(args):
                     x_offset += img.width
                 new_image.save(save_dir / f"step={step}-total-1.png")
                 ddpm.save(f"{save_dir}/last.ckpt")
-                # Additional images sampling
-                args_another = argparse.Namespace(
-                    ckpt_path=f"{save_dir}/last.ckpt",
-                    save_dir=save_dir,
-                    sample_method="ddim",
-                    gpu=0,
-                    save_name=f"{save_dir}/step={step}-total-2.png",
-                    batch_size=4,
-                    total_samples=8,
-                    img_size=256,
-                    use_cfg=False,
-                    num_inference_timesteps=20,
-                    cfg_scale=7.5,
-                )
-                run_another_sampling(args_another)
                 
                 if step % config.test_interval == 0:
                     args_test = argparse.Namespace(
