@@ -12,7 +12,6 @@ python train.py \
     --seed 63 \
     --default_scheduler 0 \
     --ema 0 \
-    --penstate_in_model 1 \
     --beta_1 1e-4 \
     --beta_T 0.02 \
     --num_diffusion_train_timesteps 100 \

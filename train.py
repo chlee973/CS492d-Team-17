@@ -83,7 +83,6 @@ def main(args):
         use_cfg=args.use_cfg,
         cfg_dropout=args.cfg_dropout,
         num_classes=getattr(ds_module, "num_classes", None),
-        penstate_in_model = args.penstate_in_model,
     )
 
     ddpm = DiffusionModule(network, var_scheduler)
@@ -137,7 +136,6 @@ def main(args):
                         num_inference_timesteps=num_inference_timesteps,
                         eta=eta,
                         return_traj=False,
-                        penstate_in_model = args.penstate_in_model,
                     )
                 else:  # Unconditional training
                     vectors, pen_states = ddpm.sample(
@@ -145,7 +143,6 @@ def main(args):
                         num_inference_timesteps=num_inference_timesteps,
                         eta=eta,
                         return_traj=False,
-                        penstate_in_model = args.penstate_in_model,
                     )
                 samples = torch.cat((vectors, pen_states), dim=-1)
                 samples = pen_state_to_binary(samples)
@@ -174,7 +171,6 @@ def main(args):
                     use_cfg=False,
                     num_inference_timesteps=20,
                     cfg_scale=7.5,
-                    penstate_in_model = args.penstate_in_model
                 )
                 run_another_sampling(args_another)
                 
@@ -190,7 +186,6 @@ def main(args):
                         use_cfg=False,
                         num_inference_timesteps=20,
                         cfg_scale=7.5,
-                        penstate_in_model = args.penstate_in_model
                     )
 
                     run_test_sampling(args_test)
@@ -211,9 +206,9 @@ def main(args):
             img, label = img.to(config.device).to(torch.float32), label.to(torch.float32)
 
             if args.use_cfg:  # Conditional, CFG training
-                loss = ddpm.get_loss(img, class_label=label, pen_state_loss_weight=args.pen_state_loss_weight, penstate_in_model = args.penstate_in_model)
+                loss = ddpm.get_loss(img, class_label=label, pen_state_loss_weight=args.pen_state_loss_weight)
             else:  # Unconditional training
-                loss = ddpm.get_loss(img, pen_state_loss_weight=args.pen_state_loss_weight, penstate_in_model = args.penstate_in_model)
+                loss = ddpm.get_loss(img, pen_state_loss_weight=args.pen_state_loss_weight)
             
             pbar.set_description(f"Loss: {loss.item():.4f}")
 
@@ -249,7 +244,6 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=63)
     parser.add_argument("--default_scheduler", type=int, default=0)
     parser.add_argument("--ema", type=int, default=0)
-    parser.add_argument("--penstate_in_model", type=int, default=0)
     
     parser.add_argument("--pen_state_loss_weight", type=float, default=0.5)
 

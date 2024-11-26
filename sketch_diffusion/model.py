@@ -15,7 +15,7 @@ class DiffusionModule(nn.Module):
         self.network = network
         self.var_scheduler = var_scheduler
 
-    def get_loss(self, x0, pen_state_loss_weight, class_label=None, noise=None, penstate_in_model=0):
+    def get_loss(self, x0, pen_state_loss_weight, class_label=None, noise=None):
         ######## TODO ########
         # DO NOT change the code outside this part.
         # compute noise matching loss.
@@ -24,32 +24,15 @@ class DiffusionModule(nn.Module):
         B = x0.shape[0]
         timestep = self.var_scheduler.uniform_sample_t(B, self.device)
         pen_state = x0[:, :, 2]
-
-        if penstate_in_model:
-            noise = torch.randn_like(x0, device=self.device)
-            xt, noise = self.var_scheduler.q_sample(x0, timestep, noise)
-            # noise[:, :, 2] = torch.sigmoid(noise[:, :, 2])
-            noise_pred, pen_state_pred = self.network(xt, timestep, class_label)
-            noise_criterion = nn.MSELoss()
-            pen_state_criterion = nn.CrossEntropyLoss()
-            pen_state_pred = pen_state_pred.reshape(-1, 2).type(torch.FloatTensor)
-            pen_state = pen_state.reshape(-1,).type(torch.LongTensor)
-            loss = noise_criterion(noise_pred, noise[:, :, :2]) + pen_state_loss_weight * pen_state_criterion(pen_state_pred, pen_state)
-            return loss
-
-        if noise is None:
-            noise = torch.randn_like(x0[:, :, :2], device=self.device)
-        xt, noise = self.var_scheduler.q_sample(x0[:, :, :2], timestep, noise)
-
+        noise = torch.randn_like(x0, device=self.device)
+        xt, noise = self.var_scheduler.q_sample(x0, timestep, noise)
+        # noise[:, :, 2] = torch.sigmoid(noise[:, :, 2])
         noise_pred, pen_state_pred = self.network(xt, timestep, class_label)
-
         noise_criterion = nn.MSELoss()
         pen_state_criterion = nn.CrossEntropyLoss()
         pen_state_pred = pen_state_pred.reshape(-1, 2).type(torch.FloatTensor)
         pen_state = pen_state.reshape(-1,).type(torch.LongTensor)
-
-        loss = noise_criterion(noise_pred, noise) + pen_state_loss_weight * pen_state_criterion(pen_state_pred, pen_state)
-        ######################
+        loss = noise_criterion(noise_pred, noise[:, :, :2]) + pen_state_loss_weight * pen_state_criterion(pen_state_pred, pen_state)
         return loss
     
     @property
@@ -69,11 +52,10 @@ class DiffusionModule(nn.Module):
         return_traj=False,
         class_label: Optional[torch.Tensor] = None,
         guidance_scale: Optional[float] = 0.0,
-        penstate_in_model = 0,
 
     ):
 
-        x_T = torch.randn([batch_size, self.Nmax, penstate_in_model+2], device=self.device, dtype=torch.float32)
+        x_T = torch.randn([batch_size, self.Nmax, 3], device=self.device, dtype=torch.float32)
         do_classifier_free_guidance = guidance_scale > 0.0
 
         if do_classifier_free_guidance:
@@ -111,13 +93,13 @@ class DiffusionModule(nn.Module):
                     timestep=t.to(self.device),
                     class_label=class_label,
                 )
-            if penstate_in_model:
-                pen_state_criterion = nn.CrossEntropyLoss()
-                pen_state_probs = torch.softmax(pen_state_pred, dim=-1)  # Shape: [10, 96, 2]
-                pen_state_positive = pen_state_probs[..., 1]  # Shape: [10, 96]
-                pen_state_positive = pen_state_positive.unsqueeze(-1)  # Shape: [10, 96, 1]
-                noise_pred_extended = torch.cat([noise_pred, pen_state_positive], dim=-1)  # Shape: [10, 96, 3]
-                noise_pred = noise_pred_extended
+                
+            pen_state_criterion = nn.CrossEntropyLoss()
+            pen_state_probs = torch.softmax(pen_state_pred, dim=-1)  # Shape: [10, 96, 2]
+            pen_state_positive = pen_state_probs[..., 0]  # Shape: [10, 96]
+            pen_state_positive = pen_state_positive.unsqueeze(-1)  # Shape: [10, 96, 1]
+            noise_pred_extended = torch.cat([noise_pred, pen_state_positive], dim=-1)  # Shape: [10, 96, 3]
+            noise_pred = noise_pred_extended
 
             x_t_prev = self.var_scheduler.ddim_p_sample(x_t, t.to(self.device), t_prev.to(self.device), noise_pred, eta)
             
