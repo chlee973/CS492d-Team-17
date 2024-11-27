@@ -174,7 +174,7 @@ def main(args):
                 )
                 run_another_sampling(args_another)
                 
-                if step % config.test_interval == 0 and step != 0:
+                if step % config.test_interval == 0: #and step != 0:
                     args_test = argparse.Namespace(
                         ckpt_path=f"{save_dir}/last.ckpt",
                         save_dir=f"{save_dir}/step={step}-test",
@@ -204,7 +204,6 @@ def main(args):
 
             img, label = next(train_it)
             img, label = img.to(config.device).to(torch.float32), label.to(torch.float32)
-
             if args.use_cfg:  # Conditional, CFG training
                 loss = ddpm.get_loss(img, class_label=label, pen_state_loss_weight=args.pen_state_loss_weight)
             else:  # Unconditional training

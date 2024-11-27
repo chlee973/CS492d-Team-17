@@ -25,7 +25,7 @@ class UNet(nn.Module):
             self.class_embedding = nn.Embedding(num_classes+1, cdim)
         
         
-        self.head = nn.Linear(3, 128)
+        self.head = nn.Linear(2, 128)
         self.downblocks = nn.ModuleList()
         chs = [ch]  # record output channel when dowmsample for upsample
         now_ch = ch

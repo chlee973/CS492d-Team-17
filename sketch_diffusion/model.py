@@ -23,16 +23,16 @@ class DiffusionModule(nn.Module):
         assert x0.dtype == torch.float32
         B = x0.shape[0]
         timestep = self.var_scheduler.uniform_sample_t(B, self.device)
-        pen_state = x0[:, :, 2]
+        x0 = x0[:, :, :2]
         noise = torch.randn_like(x0, device=self.device)
         xt, noise = self.var_scheduler.q_sample(x0, timestep, noise)
-        # noise[:, :, 2] = torch.sigmoid(noise[:, :, 2])
         noise_pred, pen_state_pred = self.network(xt, timestep, class_label)
         noise_criterion = nn.MSELoss()
-        pen_state_criterion = nn.CrossEntropyLoss()
-        pen_state_pred = pen_state_pred.reshape(-1, 2).type(torch.FloatTensor)
-        pen_state = pen_state.reshape(-1,).type(torch.LongTensor)
-        loss = noise_criterion(noise_pred, noise[:, :, :2]) + pen_state_loss_weight * pen_state_criterion(pen_state_pred, pen_state)
+        # pen_state = x0[:, :, 2]
+        # pen_state_criterion = nn.CrossEntropyLoss()
+        # pen_state_pred = pen_state_pred.reshape(-1, 2).type(torch.FloatTensor)
+        # pen_state = pen_state.reshape(-1,).type(torch.LongTensor)
+        loss = noise_criterion(noise_pred, noise[:, :, :2]) #+ pen_state_loss_weight * pen_state_criterion(pen_state_pred, pen_state)
         return loss
     
     @property
@@ -55,7 +55,7 @@ class DiffusionModule(nn.Module):
 
     ):
 
-        x_T = torch.randn([batch_size, self.Nmax, 3], device=self.device, dtype=torch.float32)
+        x_T = torch.randn([batch_size, self.Nmax, 2], device=self.device, dtype=torch.float32)
         do_classifier_free_guidance = guidance_scale > 0.0
 
         if do_classifier_free_guidance:
@@ -83,10 +83,8 @@ class DiffusionModule(nn.Module):
         for t, t_prev in zip(timesteps, prev_timesteps):
             x_t = traj[-1]
             if do_classifier_free_guidance:
-                ######## TODO ########
                 # Assignment 2. Implement the classifier-free guidance.
                 raise NotImplementedError("TODO")
-                #######################
             else:
                 noise_pred, pen_state_pred = self.network(
                     x_t,
@@ -94,12 +92,12 @@ class DiffusionModule(nn.Module):
                     class_label=class_label,
                 )
                 
-            pen_state_criterion = nn.CrossEntropyLoss()
-            pen_state_probs = torch.softmax(pen_state_pred, dim=-1)  # Shape: [10, 96, 2]
-            pen_state_positive = pen_state_probs[..., 0]  # Shape: [10, 96]
-            pen_state_positive = pen_state_positive.unsqueeze(-1)  # Shape: [10, 96, 1]
-            noise_pred_extended = torch.cat([noise_pred, pen_state_positive], dim=-1)  # Shape: [10, 96, 3]
-            noise_pred = noise_pred_extended
+            # pen_state_criterion = nn.CrossEntropyLoss()
+            # pen_state_probs = torch.softmax(pen_state_pred, dim=-1)  # Shape: [10, 96, 2]
+            # pen_state_positive = pen_state_probs[..., 0]  # Shape: [10, 96]
+            # pen_state_positive = pen_state_positive.unsqueeze(-1)  # Shape: [10, 96, 1]
+            # noise_pred_extended = torch.cat([noise_pred, pen_state_positive], dim=-1)  # Shape: [10, 96, 3]
+            # noise_pred = noise_pred_extended
 
             x_t_prev = self.var_scheduler.ddim_p_sample(x_t, t.to(self.device), t_prev.to(self.device), noise_pred, eta)
             

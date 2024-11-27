@@ -32,29 +32,30 @@ def scale_sketch(sketch, size=(256, 256)):
     return sketch_rescale.astype("int16")
 
 def draw_three(sketch, img_size=256):
-    thickness = 1
-    sketch = scale_sketch(sketch, (img_size, img_size))  
-    [start_x, start_y, h, w] = canvas_size_google(sketch=sketch)
-    start_x += 2  
-    start_y += 2
-    canvas_size = max(h, w) + 6  
-    canvas = np.ones((canvas_size, canvas_size, 3), dtype='uint8') * 255
-    color = (0, 0, 0)
-    pen_now = np.array([start_x, start_y])
-    first_zero = False
-    for stroke in sketch:
-        delta_x_y = stroke[0:2]
-        state = stroke[2]
-        if first_zero:  
-            pen_now += delta_x_y
-            first_zero = False
-            continue
-        cv2.line(canvas, tuple(pen_now), tuple(pen_now + delta_x_y), color, thickness=thickness)
-        if int(state) == 1:  
-            first_zero = True
-        pen_now += delta_x_y
-    canvas = cv2.resize(canvas, (img_size, img_size))
+    """
+    모든 점을 순차적으로 연결하여 스케치를 그립니다. pen_state는 무시됩니다.
+    
+    Parameters:
+        sketch (numpy.ndarray): (M, 3) 형태의 배열, 각 행은 [x, y, pen_state].
+        img_size (int): 출력 이미지 크기 (픽셀 단위).
+    
+    Returns:
+        numpy.ndarray: 그려진 스케치 이미지 (흰색 배경에 검은 선).
+    """
+    # 흰색 배경의 캔버스 생성
+    canvas = np.ones((img_size, img_size, 3), dtype='uint8') * 255
+    
+    # 스케치의 x, y 좌표 추출 및 정수형으로 변환
+    points = sketch[:, :2].astype(int)
+    
+    # 모든 점을 순차적으로 연결
+    for i in range(1, len(points)):
+        start_point = tuple(points[i - 1])
+        end_point = tuple(points[i])
+        cv2.line(canvas, start_point, end_point, color=(0, 0, 0), thickness=1)
+    
     return canvas
+
 
 def bin_pen(x, pen_break=0.5):
     pen_states = (x[:, :, 2] >= pen_break).float()
