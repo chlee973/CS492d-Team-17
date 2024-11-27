@@ -43,8 +43,9 @@ def tensor_to_pil_image(tensor: torch.Tensor, canvas_size=(256, 256), padding=30
         next_x = current_x + dx
         next_y = current_y + dy
 
-        if pen_state == 0 and show_hidden:
-            draw.line([current_x, current_y, next_x, next_y], fill="yellow", width=1)
+        if int(pen_state) == 0:
+            if show_hidden:
+                draw.line([current_x, current_y, next_x, next_y], fill="yellow", width=1)
         else:
             draw.line([current_x, current_y, next_x, next_y], fill="black", width=1)
         current_x, current_y = next_x, next_y
