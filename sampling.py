@@ -46,7 +46,7 @@ def main(args):
 
         if args.use_cfg:  # Enable CFG sampling
             assert ddpm.network.use_cfg, f"The model was not trained to support CFG."
-            vectors, pen_states = ddpm.sample(
+            vectors = ddpm.sample(
                 B,
                 class_label=torch.randint(1, 4, (B,)),
                 num_inference_timesteps=num_inference_timesteps,
@@ -54,16 +54,15 @@ def main(args):
                 guidance_scale=args.cfg_scale,
             )
         else:
-            vectors, pen_states = ddpm.sample(
+            vectors = ddpm.sample(
                 B,
                 class_label=torch.randint(1, 4, (B,)),
                 num_inference_timesteps=num_inference_timesteps,
                 eta=eta,
                 guidance_scale=0.0,
             )
-
+        pen_states = torch.ones((vectors.shape[0], vectors.shape[1], 1), device=vectors.device)
         samples = torch.cat((vectors, pen_states), dim=-1)
-        samples = pen_state_to_binary(samples)
         pil_images = [tensor_to_pil_image(sample) for sample in samples]
 
         for j, img in zip(range(sidx, eidx), pil_images):

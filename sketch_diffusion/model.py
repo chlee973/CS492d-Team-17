@@ -15,7 +15,7 @@ class DiffusionModule(nn.Module):
         self.network = network
         self.var_scheduler = var_scheduler
 
-    def get_loss(self, x0, pen_state_loss_weight, class_label=None, noise=None):
+    def get_loss(self, x0, class_label=None, noise=None):
         ######## TODO ########
         # DO NOT change the code outside this part.
         # compute noise matching loss.
@@ -28,14 +28,11 @@ class DiffusionModule(nn.Module):
             noise = torch.randn_like(x0[:, :, :2], device=self.device)
         xt, noise = self.var_scheduler.q_sample(x0[:, :, :2], timestep, noise)
 
-        noise_pred, pen_state_pred = self.network(xt, timestep, class_label)
+        noise_pred = self.network(xt, timestep, class_label)
 
         noise_criterion = nn.MSELoss()
-        pen_state_criterion = nn.CrossEntropyLoss()
-        pen_state_pred = pen_state_pred.reshape(-1, 2).type(torch.FloatTensor)
-        pen_state = pen_state.reshape(-1,).type(torch.LongTensor)
 
-        loss = noise_criterion(noise_pred, noise) + pen_state_loss_weight * pen_state_criterion(pen_state_pred, pen_state)
+        loss = noise_criterion(noise_pred, noise)
         ######################
         return loss
     
@@ -73,7 +70,6 @@ class DiffusionModule(nn.Module):
             #######################
 
         traj = [x_T]
-        pen_state_traj = []
         step_ratio = self.var_scheduler.num_train_timesteps // num_inference_timesteps
         timesteps = torch.from_numpy(
             (np.arange(0, num_inference_timesteps) * step_ratio)
@@ -90,7 +86,7 @@ class DiffusionModule(nn.Module):
                 raise NotImplementedError("TODO")
                 #######################
             else:
-                noise_pred, pen_state_pred = self.network(
+                noise_pred = self.network(
                     x_t,
                     timestep=t.to(self.device),
                     class_label=class_label,
@@ -100,12 +96,11 @@ class DiffusionModule(nn.Module):
             
             traj[-1] = traj[-1].cpu()
             traj.append(x_t_prev.detach())
-            pen_state_traj.append(pen_state_pred.detach())
 
         if return_traj:
-            return traj, pen_state_traj
+            return traj
         else:
-            return traj[-1], pen_state_traj[-1]
+            return traj[-1]
 
     def save(self, file_path):
         hparams = {

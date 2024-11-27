@@ -13,6 +13,7 @@ from sketch_diffusion.dataset import SketchDataModule, get_data_iterator, pen_st
 from dotmap import DotMap
 from sketch_diffusion.model import DiffusionModule
 from sketch_diffusion.network import UNet
+from sketch_diffusion.transformer_network import TransformerModel
 from pytorch_lightning import seed_everything
 from sketch_diffusion.scheduler import DDPMScheduler
 from tqdm import tqdm
@@ -38,10 +39,7 @@ def main(args):
     config.device = f"cuda:{args.gpu}"
 
     now = get_current_time()
-    if args.use_cfg:
-        save_dir = Path(f"results/cfg_diffusion-{args.sample_method}-{now}-{args.add_name}")
-    else:
-        save_dir = Path(f"results/diffusion-{args.sample_method}-{now}-{args.add_name}")
+    save_dir = Path(f"results/diffusion-{args.sample_method}-{now}-{args.add_name}")
     save_dir.mkdir(exist_ok=True, parents=True)
     print(f"save_dir: {save_dir}")
 
@@ -73,16 +71,12 @@ def main(args):
     # check
     print(var_scheduler.register_buffer)
     
-    network = UNet(
-        ch=config.Nmax,
-        ch_mult=[1, 2, 3, 4],
-        attn=[],
-        num_res_blocks=config.num_res_blocks,
+    network = TransformerModel(
+        d_model=config.hidden_dim,
+        num_layers=config.num_layers,
         num_heads=config.num_heads,
-        dropout=config.dropout,
-        use_cfg=args.use_cfg,
-        cfg_dropout=args.cfg_dropout,
-        num_classes=getattr(ds_module, "num_classes", None),
+        T=1000,
+        max_len=config.Nmax
     )
 
     ddpm = DiffusionModule(network, var_scheduler)
@@ -129,21 +123,12 @@ def main(args):
                     eta = 0.0
                     num_inference_timesteps = config.num_inference_timesteps
 
-                if args.use_cfg:  # Conditional, CFG training
-                    vectors = ddpm.sample(
-                        8,
-                        class_label=torch.randint(1, 4, (4,)).to(config.device),
-                        num_inference_timesteps=num_inference_timesteps,
-                        eta=eta,
-                        return_traj=False,
-                    )
-                else:  # Unconditional training
-                    vectors = ddpm.sample(
-                        8, 
-                        num_inference_timesteps=num_inference_timesteps,
-                        eta=eta,
-                        return_traj=False
-                    )
+                vectors = ddpm.sample(
+                    8, 
+                    num_inference_timesteps=num_inference_timesteps,
+                    eta=eta,
+                    return_traj=False
+                )
                 pen_states = torch.ones((vectors.shape[0], vectors.shape[1], 1), device=vectors.device)
                 samples = torch.cat((vectors, pen_states), dim=-1)
                 pil_images = [tensor_to_pil_image(sample, show_hidden=True) for sample in samples]
@@ -190,10 +175,7 @@ def main(args):
             img, label = next(train_it)
             img, label = img.to(config.device).to(torch.float32), label.to(torch.float32)
 
-            if args.use_cfg:  # Conditional, CFG training
-                loss = ddpm.get_loss(img, class_label=label)
-            else:  # Unconditional training
-                loss = ddpm.get_loss(img)
+            loss = ddpm.get_loss(img)
             
             pbar.set_description(f"Loss: {loss.item():.4f}")
 
@@ -239,11 +221,11 @@ if __name__ == "__main__":
 
     # Network
     parser.add_argument("--Nmax", type=int, default=96)
-    parser.add_argument("--num_res_blocks", type=int, default=3)
-    parser.add_argument("--num_heads", type=int, default=4)
-    parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--dropout", type=float, default=0.1)
-    parser.add_argument("--cfg_dropout", type=float, default=0.1)
-    parser.add_argument("--add_name", type=str, default="ema-scheduler")
+    parser.add_argument("--hidden_dim", type=int, default=256)
+    parser.add_argument("--num_layers", type=int, default=6)
+    parser.add_argument("--num_heads", type=int, default=8)
+    parser.add_argument("--add_name", type=str, default="transformer")
+
     args = parser.parse_args()
     main(args)
