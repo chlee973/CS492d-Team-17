@@ -109,7 +109,7 @@ def main(args):
                 for param_group in optimizer.param_groups:
                     param_group["lr"] = lr
 
-            if step % config.log_interval == 0:
+            if step % config.log_interval == 0 and step!=0:
                 ddpm.eval()
                 plt.plot(losses)
                 plt.savefig(f"{save_dir}/loss.png")

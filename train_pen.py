@@ -178,9 +178,10 @@ if __name__ == "__main__":
         loss = noise_criterion(outputs, img[:,:,2])
         loss.backward()
         optimizer.step()
-        # print(f"[{step}]: {loss.item()}")
+        if step %10000 == 0:
+            print(f"[{step}]: {loss.item()}")
     
-    path = "results/pen-state-prediction"
+    path = f"results/pen-state-prediction-{datetime.now().strftime('%m-%d-%H%M%S')}"
     save_dir = Path(path)
     save_dir.mkdir(exist_ok=True, parents=True)
     save_path = f"results/pen-state-prediction-{datetime.now().strftime('%m-%d-%H%M%S')}/pen.ckpt"  # 확장자 추가
