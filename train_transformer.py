@@ -143,7 +143,7 @@ def main(args):
                 
                 if step % config.test_interval == 0:
                     args_test = argparse.Namespace(
-                        ckpt_path=f"{save_dir}/last.ckpt",
+                        ckpt_path=f"{save_dir}/step={step}.ckpt",
                         save_dir=f"{save_dir}/step={step}-test",
                         sample_method="ddim",
                         gpu=0,
