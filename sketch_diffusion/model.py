@@ -16,14 +16,10 @@ class DiffusionModule(nn.Module):
         self.var_scheduler = var_scheduler
 
     def get_loss(self, x0, class_label=None, noise=None):
-        ######## TODO ########
-        # DO NOT change the code outside this part.
-        # compute noise matching loss.
         # x0 is of shape [B, C, 3], C is 96
         assert x0.dtype == torch.float32
         B = x0.shape[0]
         timestep = self.var_scheduler.uniform_sample_t(B, self.device)
-        pen_state = x0[:, :, 2]
         if noise is None:
             noise = torch.randn_like(x0[:, :, :2], device=self.device)
         xt, noise = self.var_scheduler.q_sample(x0[:, :, :2], timestep, noise)
@@ -33,7 +29,6 @@ class DiffusionModule(nn.Module):
         noise_criterion = nn.MSELoss()
 
         loss = noise_criterion(noise_pred, noise)
-        ######################
         return loss
     
     @property
@@ -55,19 +50,6 @@ class DiffusionModule(nn.Module):
         guidance_scale: Optional[float] = 0.0,
     ):
         x_T = torch.randn([batch_size, self.Nmax, 2], device=self.device, dtype=torch.float32)
-        do_classifier_free_guidance = guidance_scale > 0.0
-
-        if do_classifier_free_guidance:
-
-            ######## TODO ########
-            # Assignment 2-3. Implement the classifier-free guidance.
-            # Specifically, given a tensor of shape (batch_size,) containing class labels,
-            # create a tensor of shape (2*batch_size,) where the first half is filled with zeros (i.e., null condition).
-            
-            assert class_label is not None
-            assert len(class_label) == batch_size, f"len(class_label) != batch_size. {len(class_label)} != {batch_size}"
-            raise NotImplementedError("TODO")
-            #######################
 
         traj = [x_T]
         step_ratio = self.var_scheduler.num_train_timesteps // num_inference_timesteps
@@ -80,17 +62,11 @@ class DiffusionModule(nn.Module):
         prev_timesteps = timesteps - step_ratio
         for t, t_prev in zip(timesteps, prev_timesteps):
             x_t = traj[-1]
-            if do_classifier_free_guidance:
-                ######## TODO ########
-                # Assignment 2. Implement the classifier-free guidance.
-                raise NotImplementedError("TODO")
-                #######################
-            else:
-                noise_pred = self.network(
-                    x_t,
-                    timestep=t.to(self.device),
-                    class_label=class_label,
-                )
+            noise_pred = self.network(
+                x_t,
+                timestep=t.to(self.device),
+                class_label=class_label,
+            )
 
             x_t_prev = self.var_scheduler.ddim_p_sample(x_t, t.to(self.device), t_prev.to(self.device), noise_pred, eta)
             
@@ -112,8 +88,8 @@ class DiffusionModule(nn.Module):
         dic = {"hparams": hparams, "state_dict": state_dict}
         torch.save(dic, file_path)
 
-    def load(self, file_path):
-        dic = torch.load(file_path, map_location="cpu")
+    def load(self, file_path, map_location="cuda:0"):
+        dic = torch.load(file_path, map_location)
         hparams = dic["hparams"]
         state_dict = dic["state_dict"]
 

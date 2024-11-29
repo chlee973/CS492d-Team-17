@@ -5,7 +5,7 @@ python train_transformer.py \
     --what_sketches ./data/sketches_rdp.h5 \
     --categories cat \
     --batch_size 128 \
-    --train_num_steps 50000 \
+    --train_num_steps 200000 \
     --warmup_steps 200 \
     --log_interval 2000 \
     --seed 63 \
@@ -18,7 +18,7 @@ python train_transformer.py \
     --sample_method ddim \
     --Nmax 96 \
     --dropout 0.1 \
-    --hidden_dim 512 \
+    --hidden_dim 256 \
     --num_layers 6 \
-    --num_heads 16 \
-    --add_name cat_1000step_vectors_transformer_16head
+    --num_heads 8 \
+    --add_name cat_batch128_256dim_6layers_8heads

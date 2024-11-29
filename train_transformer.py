@@ -82,32 +82,29 @@ def main(args):
     ddpm = DiffusionModule(network, var_scheduler)
     ddpm = ddpm.to(config.device)
 
+    initial_lr = 2e-4
+    weight_decay = 1e-5
+
+    optimizer = torch.optim.AdamW(ddpm.network.parameters(), lr=initial_lr, weight_decay=weight_decay)
+    
+
+    step = 0
+
+    if args.resume_ckpt:
+        ddpm.load(args.resume_ckpt, map_location=config.device)
+        step = args.resume_step
+        print(f"Resumed from checkpoint: {args.resume_ckpt} at step {step}")
+
     if config.ema:
         ema_rate = 0.9999
         ema_params = [param.clone().detach().to(config.device) for param in ddpm.network.parameters()]
         for param in ema_params:
             param.requires_grad = False
-    
-    initial_lr = 2e-4
-    lr_anneal_steps = config.train_num_steps
 
-    optimizer = torch.optim.Adam(ddpm.network.parameters(), lr=initial_lr)
-    #################### Implement Scheduler
-    if not config.default_scheduler:
-        scheduler = torch.optim.lr_scheduler.LambdaLR(
-            optimizer, lr_lambda=lambda t: min((t + 1) / config.warmup_steps, 1.0)
-        )
 
-    step = 0
     losses = []
     with tqdm(initial=step, total=config.train_num_steps) as pbar:
         while step < config.train_num_steps:
-            if config.default_scheduler:
-                frac_done = step / lr_anneal_steps
-                frac_done = min(frac_done, 1.0)  # frac_done이 1을 넘지 않도록 제한
-                lr = initial_lr * (1 - frac_done)
-                for param_group in optimizer.param_groups:
-                    param_group["lr"] = lr
 
             if step % config.log_interval == 0:
                 ddpm.eval()
@@ -142,7 +139,7 @@ def main(args):
                     new_image.paste(img, (x_offset, 0))
                     x_offset += img.width
                 new_image.save(save_dir / f"step={step}-total-1.png")
-                ddpm.save(f"{save_dir}/last.ckpt")
+                ddpm.save(f"{save_dir}/step={step}.ckpt")
                 
                 if step % config.test_interval == 0:
                     args_test = argparse.Namespace(
@@ -186,8 +183,6 @@ def main(args):
                 for param, ema_param in zip(ddpm.network.parameters(), ema_params):
                     ema_param.data.mul_(ema_rate).add_(param.data, alpha=1 - ema_rate)
             
-            if not config.default_scheduler:
-                scheduler.step()
             losses.append(loss.item())
 
             step += 1
@@ -211,6 +206,8 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=63)
     parser.add_argument("--default_scheduler", type=int, default=0)
     parser.add_argument("--ema", type=int, default=0)
+    parser.add_argument("--resume_ckpt", type=str, default=None, help="Path to checkpoint for resuming training")
+    parser.add_argument("--resume_step", type=int, default=None)
 
     # Diffusion Scheduler
     parser.add_argument("--beta_1", type=float, default=1e-4)
