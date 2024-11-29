@@ -6,23 +6,6 @@ from .module import Swish, TimeEmbedding
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=96):
         super(PositionalEncoding, self).__init__()
-        self.pos_embedding = nn.Embedding(max_len, d_model)
-        self.max_len = max_len
-    
-    def forward(self, x):
-        """
-        x: (B, N, d_model)
-        """
-        B, N, _ = x.size()
-        if N > self.max_len:
-            raise ValueError(f"Sequence length N={N} exceeds max_len={self.max_len}")
-        positions = torch.arange(0, N, device=x.device).unsqueeze(0).expand(B, N)  # (B, N)
-        pos_emb = self.pos_embedding(positions)  # (B, N, d_model)
-        return x + pos_emb
-
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=96):
-        super(PositionalEncoding, self).__init__()
         self.pos_embedding = nn.Embedding(max_len, d_model)  # Use max_len parameter
         self.max_len = max_len
     
