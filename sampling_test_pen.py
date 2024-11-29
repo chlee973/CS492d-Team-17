@@ -5,7 +5,7 @@ import torch
 from sketch_diffusion.dataset import pen_state_to_binary, tensor_to_pil_image
 from sketch_diffusion.model import DiffusionModule
 from sketch_diffusion.scheduler import DDPMScheduler
-from train_pen import Penet
+from train_pen_transformer import TransformerPenet
 from pathlib import Path
 
 
@@ -17,19 +17,19 @@ def main(args):
 
     ddpm = DiffusionModule(None, None)
     # ddpm.load(args.ckpt_path)
-    ddpm.load("results/diffusion-ddim-11-28-053924-cat_1000step_vectors_transformer_16head/last.ckpt")
+    ddpm.load("results/diffusion-ddim-11-28-182512-cat_1000step_vectors_transformer_16head/last.ckpt")
     ddpm.eval()
     ddpm = ddpm.to(device)
 
-    penmodel = Penet(dims=1, channels=96).to(device)
-    penmodel.load("results/pen-state-prediction/pen.ckpt")
+    penmodel = TransformerPenet().to(device)
+    penmodel.load("results/pen-state-prediction-transformer-11-29-002618/pen.ckpt")
     penmodel.eval()
 
     num_train_timesteps = ddpm.var_scheduler.num_train_timesteps
     ddpm.var_scheduler = DDPMScheduler(
         num_train_timesteps,
-        beta_1=1e-4,
-        beta_T=0.02,
+        beta_1=1e-5,
+        beta_T=0.01,
         mode="linear",
     ).to(device)
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_dir", type=str, default='samples')
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--sample_method", type=str, choices=['ddpm', 'ddim'], default="ddim")
-    parser.add_argument("--num_inference_timesteps", type=int, default=20)
+    parser.add_argument("--num_inference_timesteps", type=int, default=100)
     parser.add_argument("--num_samples", type=int, default=20)
     parser.add_argument("--cfg_scale", type=float, default=7.5)
 

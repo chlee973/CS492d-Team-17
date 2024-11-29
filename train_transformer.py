@@ -154,8 +154,10 @@ def main(args):
                         total_samples=8,
                         img_size=256,
                         use_cfg=False,
-                        num_inference_timesteps=20,
+                        num_inference_timesteps=num_inference_timesteps,
                         cfg_scale=7.5,
+                        beta_1=config.beta_1,
+                        beta_T=config.beta_T,
                     )
 
                     run_test_sampling(args_test)

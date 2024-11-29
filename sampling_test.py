@@ -5,6 +5,7 @@ from sketch_diffusion.model import DiffusionModule
 from sketch_diffusion.scheduler import DDPMScheduler
 from pathlib import Path
 from torchvision.utils import save_image
+import argparse
 
 # main을 함수화하여 재사용 가능하도록 변경
 def run_test_sampling(args):
@@ -70,3 +71,31 @@ def run_test_sampling(args):
             sample_count += 1
 
     print(f"{sample_count}개의 이미지가 '{images_dir}' 폴더에 저장되었습니다.")
+
+
+def main():
+    # 필요한 변수들을 설정합니다.
+    save_dir = Path("results/diffusion-ddim-11-28-182512-cat_1000step_vectors_transformer_16head")  # 실제 저장 디렉토리 경로로 변경하세요.
+    num_inference_timesteps = 1000  # 원하는 타임스텝 수로 설정하세요.
+
+    # args_test 네임스페이스를 생성합니다.
+    args_test = argparse.Namespace(
+        ckpt_path=str(save_dir / "last.ckpt"),
+        save_dir=str(save_dir / f"step=-test"),
+        sample_method="ddim",
+        gpu=0,
+        batch_size=4,
+        total_samples=8,
+        img_size=256,
+        use_cfg=False,
+        num_inference_timesteps=100,
+        cfg_scale=7.5,
+        beta_1=1e-5,
+        beta_T=0.01,
+    )
+
+    # 샘플링 함수를 호출합니다.
+    run_test_sampling(args_test)
+
+if __name__ == "__main__":
+    main()
