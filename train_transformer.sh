@@ -7,14 +7,15 @@ python train_transformer.py \
     --batch_size 128 \
     --train_num_steps 200000 \
     --warmup_steps 200 \
-    --log_interval 2000 \
+    --log_interval 50000 \
+    --test_interval 100000 \
     --seed 63 \
     --default_scheduler 0 \
     --ema 0 \
-    --beta_1 1e-4 \
-    --beta_T 0.02 \
+    --beta_1 1e-5 \
+    --beta_T 0.01 \
     --num_diffusion_train_timesteps 1000 \
-    --num_inference_timesteps 30 \
+    --num_inference_timesteps 100 \
     --sample_method ddim \
     --Nmax 96 \
     --dropout 0.1 \

@@ -106,7 +106,7 @@ def main(args):
     with tqdm(initial=step, total=config.train_num_steps) as pbar:
         while step < config.train_num_steps:
 
-            if step % config.log_interval == 0:
+            if step % config.log_interval == 0 and step!=0:
                 ddpm.eval()
                 plt.plot(losses)
                 plt.savefig(f"{save_dir}/loss.png")

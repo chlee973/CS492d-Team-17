@@ -58,6 +58,10 @@ def main():
             data_path = os.path.join(data_dir, f"{category}.ndjson")
             indices_path = os.path.join('sketch_data', category, 'train_test_indices.json')
             
+            # if category == "cat":
+            #     indices_path_50 = os.path.join('sketch_data', category, 'train_50.json')
+            #     indices_path = indices_path_50
+
             # Load train and test indices
             with open(indices_path, 'r') as f:
                 indices = json.load(f)
