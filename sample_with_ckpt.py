@@ -186,15 +186,15 @@ def main(args):
                 img.save(save_dir_image / f"{j}.png")
                 print(f"Saved the {j}-th image.")
         
-        ###########
-        pen_states = torch.ones((vectors.shape[0], vectors.shape[1], 1), device=vectors.device)
-        samples = torch.cat((vectors, pen_states), dim=-1)
-        if args.sample_image==1:
-            pil_images = [tensor_to_pil_image(sample) for sample in samples]
-            for j, img in zip(range(sidx, eidx), pil_images):
-                img.save(save_dir_image / f"{j}_raw.png")
-                print(f"Saved the {j}-th image.")
-        ###############
+        # ###########
+        # pen_states = torch.ones((vectors.shape[0], vectors.shape[1], 1), device=vectors.device)
+        # samples = torch.cat((vectors, pen_states), dim=-1)
+        # if args.sample_image==1:
+        #     pil_images = [tensor_to_pil_image(sample) for sample in samples]
+        #     for j, img in zip(range(sidx, eidx), pil_images):
+        #         img.save(save_dir_image / f"{j}_raw.png")
+        #         print(f"Saved the {j}-th image.")
+        # ###############
         
         if args.sample_ndjson==1:
             tensors_to_ndjson(args.save_category,samples,num_batches,save_dir_ndjson)
@@ -209,10 +209,10 @@ if __name__ == "__main__":
     parser.add_argument("--save_dir", type=str, default='samples/')
     parser.add_argument("--save_category", type=str, default='cat')
     parser.add_argument("--beta_1", type=float, default=1e-5)
-    parser.add_argument("--beta_T", type=float, default=0.005)
+    parser.add_argument("--beta_T", type=float, default=0.01)
     parser.add_argument("--use_cfg", action="store_true")
     parser.add_argument("--sample_method", type=str, choices=['ddpm', 'ddim'], default="ddim")
-    parser.add_argument("--num_inference_timesteps", type=int, default=200)
+    parser.add_argument("--num_inference_timesteps", type=int, default=100)
     parser.add_argument("--num_samples", type=int, default=10)
     parser.add_argument("--cfg_scale", type=float, default=7.5)
     parser.add_argument("--no_pen", type=float, default=0)
