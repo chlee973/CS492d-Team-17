@@ -180,12 +180,21 @@ def main(args):
             pen_states = (pen_states >= 0.5).float().unsqueeze(-1)
 
         samples = torch.cat((vectors, pen_states), dim=-1)
-
         if args.sample_image==1:
             pil_images = [tensor_to_pil_image(sample) for sample in samples]
             for j, img in zip(range(sidx, eidx), pil_images):
                 img.save(save_dir_image / f"{j}.png")
                 print(f"Saved the {j}-th image.")
+        
+        ###########
+        pen_states = torch.ones((vectors.shape[0], vectors.shape[1], 1), device=vectors.device)
+        samples = torch.cat((vectors, pen_states), dim=-1)
+        if args.sample_image==1:
+            pil_images = [tensor_to_pil_image(sample) for sample in samples]
+            for j, img in zip(range(sidx, eidx), pil_images):
+                img.save(save_dir_image / f"{j}_raw.png")
+                print(f"Saved the {j}-th image.")
+        ###############
         
         if args.sample_ndjson==1:
             tensors_to_ndjson(args.save_category,samples,num_batches,save_dir_ndjson)
