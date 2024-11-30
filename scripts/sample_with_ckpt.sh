@@ -10,6 +10,6 @@ python ../sample_with_ckpt.py \
     --save_category "cat" \
     --sample_method ddim \
     --num_inference_timesteps 200 \
-    --no_pen 1 \
+    --no_pen 0 \
     --sample_image 1 \
     --sample_ndjson 1 \
