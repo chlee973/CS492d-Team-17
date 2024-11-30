@@ -1,10 +1,10 @@
 #!/bin/bash
 
-python train_transformer.py \
+python ../train_transformer.py \
     --gpu 0 \
-    --what_sketches ./data/sketches_rdp.h5 \
+    --what_sketches ../data/sketches_rdp.h5 \
     --categories cat \
-    --batch_size 128 \
+    --batch_size 256 \
     --train_num_steps 200000 \
     --warmup_steps 200 \
     --log_interval 50000 \
@@ -13,9 +13,9 @@ python train_transformer.py \
     --default_scheduler 0 \
     --ema 0 \
     --beta_1 1e-5 \
-    --beta_T 0.01 \
+    --beta_T 0.005 \
     --num_diffusion_train_timesteps 1000 \
-    --num_inference_timesteps 100 \
+    --num_inference_timesteps 200 \
     --sample_method ddim \
     --Nmax 96 \
     --dropout 0.1 \

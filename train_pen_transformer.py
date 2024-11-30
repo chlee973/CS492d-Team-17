@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     ds_module = SketchDataModule(
         data_path="data/sketches_rdp.h5",
-        categories=['garden'],
+        categories=['helicopter'],
         Nmax=96,
         label_offset=1,
         batch_size=64,
@@ -124,9 +124,15 @@ if __name__ == "__main__":
         optimizer.step()
         if step %10000 == 0:
             print(f"[{step}]: {loss.item()}")
+        if step %50000 == 0:
+            path = f"results/helicopter-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}"
+            save_dir = Path(path)
+            save_dir.mkdir(exist_ok=True, parents=True)
+            save_path = f"results/helicopter-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}/pen_{step}.ckpt"  # 확장자 추가
+            model.save(save_path)
     
-    path = f"results/garden-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}"
+    path = f"results/helicopter-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}"
     save_dir = Path(path)
     save_dir.mkdir(exist_ok=True, parents=True)
-    save_path = f"results/garden-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}/pen.ckpt"  # 확장자 추가
+    save_path = f"results/helicopter-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}/pen.ckpt"  # 확장자 추가
     model.save(save_path)

@@ -9,5 +9,5 @@ while ps -p $target_pid > /dev/null 2>&1; do
 done
 
 # 프로세스 종료 후 실행할 명령어
-nohup bash train.sh > helicopter.log 2>&1  &
+nohup bash ../train.sh > helicopter.log 2>&1  &
 echo "Process completed. 'train.sh' started in background."
