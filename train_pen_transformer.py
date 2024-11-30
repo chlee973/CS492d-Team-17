@@ -7,6 +7,7 @@ from datetime import datetime
 # from sketch_diffusion.image_datasets import load_data, SketchesDataset
 from sketch_diffusion.dataset import SketchDataModule, get_data_iterator, pen_state_to_binary, tensor_to_pil_image
 
+
 class PositionalEncoding(nn.Module):
     """포지셔널 인코딩을 구현한 클래스입니다."""
     def __init__(self, d_model, dropout=0.1, max_len=5000):
@@ -95,10 +96,10 @@ if __name__ == "__main__":
 
     ds_module = SketchDataModule(
         data_path="data/sketches_rdp.h5",
-        categories=['cat'],
+        categories=['garden'],
         Nmax=96,
         label_offset=1,
-        batch_size=512,
+        batch_size=64,
         num_workers=4,
     )
 
@@ -106,12 +107,12 @@ if __name__ == "__main__":
     train_it = get_data_iterator(train_dl)
     ##########################
     
-    model = TransformerPenet().cuda()
+    model = TransformerPenet(hidden_dim = 320, num_layers=6, num_heads = 10).cuda()
     # criterion = nn.CrossEntropyLoss()
     noise_criterion = nn.MSELoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
     # for step in range(100000):
-    for step in range(100001):
+    for step in range(500001):
         model.train()
         optimizer.zero_grad()
         img, label = next(train_it)
@@ -124,8 +125,8 @@ if __name__ == "__main__":
         if step %10000 == 0:
             print(f"[{step}]: {loss.item()}")
     
-    path = f"results/pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}"
+    path = f"results/garden-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}"
     save_dir = Path(path)
     save_dir.mkdir(exist_ok=True, parents=True)
-    save_path = f"results/pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}/pen.ckpt"  # 확장자 추가
+    save_path = f"results/garden-pen-state-prediction-transformer-{datetime.now().strftime('%m-%d-%H%M%S')}/pen.ckpt"  # 확장자 추가
     model.save(save_path)
