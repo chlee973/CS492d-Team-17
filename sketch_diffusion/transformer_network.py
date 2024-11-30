@@ -21,7 +21,7 @@ class PositionalEncoding(nn.Module):
         return x + pos_emb
 
 class TransformerModel(nn.Module):
-    def __init__(self, d_model=128, num_layers=4, num_heads=8, T=1000, max_len=96):
+    def __init__(self, d_model=256, num_layers=6, num_heads=8, T=1000, max_len=96):
         super(TransformerModel, self).__init__()
         self.Nmax = max_len
         self.d_model = d_model
