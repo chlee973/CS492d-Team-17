@@ -12,15 +12,12 @@ import torch
 from sketch_diffusion.dataset import SketchDataModule, get_data_iterator, pen_state_to_binary, tensor_to_pil_image
 from dotmap import DotMap
 from sketch_diffusion.model import DiffusionModule
-from sketch_diffusion.network import UNet
 from sketch_diffusion.transformer_network import TransformerModel
 from pytorch_lightning import seed_everything
 from sketch_diffusion.scheduler import DDPMScheduler
 from tqdm import tqdm
 import subprocess
 from PIL import Image
-from sampling_test import run_test_sampling
-from sampling_another import run_another_sampling
 
 
 
